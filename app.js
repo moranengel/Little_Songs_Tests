@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.17-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.18-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
@@ -44,7 +44,7 @@
     return new Promise((resolve,reject) => {
       const tx = db.transaction(store,'readonly'); const request = key === undefined ? tx.objectStore(store).getAll() : tx.objectStore(store).get(key);
       request.onsuccess = () => {try{const result=request.result;resolve(store==='tracks'?(Array.isArray(result)?result.map(SAFE.unpackAudio):SAFE.unpackAudio(result)):result);}catch(error){reject(error);}}; request.onerror = () => reject(request.error);
-    });
+    }).then(async result=>{if(store!=='tracks'||result===undefined)return result;const metadata=await read('meta');const records=applySongEdits(Array.isArray(result)?result:[result],metadata);return Array.isArray(result)?records:records[0];});
   }
   async function write(store, entries, deletions = [], changed = false, extraMeta = []) {
     // Materialize all audio before opening the transaction; persist bytes, never Blob handles.
@@ -65,10 +65,27 @@
   }
   function applySongEdits(records, metadata) {
     const edits=new Map(metadata.filter(item=>item.key.startsWith('songEdit:')&&item.value&&typeof item.value.title==='string'&&typeof item.value.icon==='string').map(item=>[item.key.slice(9),item.value]));
-    return records.map(track=>{const edit=edits.get(track.id);return edit?{...track,title:edit.title,icon:edit.icon,renamed:true}:track;});
+    const states=new Map(metadata.filter(item=>item.key.startsWith('trackState:')&&item.value).map(item=>[item.key.slice(11),item.value]));
+    return records.map(track=>{const edit=edits.get(track.id),state=states.get(track.id),patch={};
+      if(typeof state?.hidden==='boolean')patch.hidden=state.hidden;
+      if(typeof state?.trashPurged==='boolean')patch.trashPurged=state.trashPurged;
+      if(Number.isFinite(state?.order))patch.order=state.order;
+      return {...track,...(edit?{title:edit.title,icon:edit.icon,renamed:true}:{}),...patch};
+    });
+  }
+  async function updateTrackState(records, extraMeta=[], changed=true) {
+    const entries=[];
+    for(const record of records){
+      const key='trackState:'+record.id,old=(await read('meta',key))?.value||{},patch={};
+      if(typeof record.hidden==='boolean')patch.hidden=record.hidden;
+      if(typeof record.trashPurged==='boolean')patch.trashPurged=record.trashPurged;
+      if(Number.isFinite(record.order))patch.order=record.order;
+      entries.push({key,value:{...old,...patch}});
+    }
+    await write('meta',[...entries,...extraMeta],[],changed);
   }
   async function reload() {
-    tracks = applySongEdits(await read('tracks'),await read('meta'));
+    tracks = await read('tracks');
     childMode=!!(await read('meta','childMode'))?.value;
     trash=(await read('meta','trash'))?.value || [];
     const legacyHidden=tracks.filter(t=>t.hidden&&!t.trashPurged&&!trash.some(item=>item.kind==='song'&&item.trackId===t.id));
@@ -244,7 +261,10 @@
           const fingerprint=await SAFE.fingerprint(file);
           let duplicate=null;
           for(const t of candidates.filter(t=>t.blob?.size===file.size)) {
-            if(!t.fingerprint){t.fingerprint=await SAFE.fingerprint(t.blob);await write('tracks',[t]);}
+            if(!t.fingerprint||t.audioStorage!=='bytes-v1'){
+              try{const actual=await SAFE.fingerprint(t.blob);if(t.fingerprint&&t.fingerprint!==actual)continue;t.fingerprint=actual;}
+              catch{continue;} // An unreadable old/trash item must not block a fresh upload.
+            }
             if(t.fingerprint===fingerprint){duplicate=t;break;}
           }
           if(duplicate) {
@@ -255,7 +275,7 @@
               if(duplicate.hidden) {
                 detail='השיר הקיים הוחזר מהפריטים שנמחקו.';
                 const item=trash.find(item=>item.kind==='song'&&item.trackId===duplicate.id);
-                if(item)await restoreTrashItem(item.id);else {duplicate.hidden=false;await write('tracks',[duplicate],[],true);}
+                if(item)await restoreTrashItem(item.id);else {duplicate.hidden=false;await updateTrackState([{id:duplicate.id,hidden:false}]);}
                 duplicate.hidden=false;recovered++;
               }
               if(needsLink){detail='השיר הקיים נוסף לפלייליסט ״'+target.name+'״ ללא עותק נוסף.';playlists=playlists.map(p=>p.id===targetId?{...p,trackIds:[...p.trackIds.filter(id=>id!==duplicate.id),duplicate.id]}:p);await write('meta',[{key:'playlists',value:playlists}],[],true);linked++;}
@@ -342,7 +362,7 @@
     await busy(async()=>{
       if(plan.records.some(t=>t.id===currentId))resetPlayer();
       const items=plan.deleted.map(item=>({...item,id:crypto.randomUUID(),kind:'song',deletedAt:Date.now()}));
-      await write('tracks',plan.records,[],true,[{key:'playlists',value:plan.playlists},{key:'trash',value:[...trash,...items]}]);
+      await updateTrackState(plan.records.map(t=>({id:t.id,hidden:true,trashPurged:false})),[{key:'playlists',value:plan.playlists},{key:'trash',value:[...trash,...items]}]);
       selectedSongIds.clear();await reload();$('edit-dialog').close();offerUndo(items[items.length-1]);lastUndoIds=items.map(item=>item.id);
       if(items.length>1)$('undo-label').textContent='נמחקו '+items.length+' שירים';
     });
@@ -465,7 +485,7 @@
       const incoming=new Map(archive.playlists.map(p=>[p.id,p]));
       const merged=[...playlists.filter(p=>!incoming.has(p.id)),...archive.playlists];
       const restoredIds=new Set(entries.map(t=>t.id));const meta=[{key:'playlists',value:merged},{key:'trash',value:trash.filter(item=>item.kind!=='song'||!restoredIds.has(item.trackId))}];if(archive.hasPlaylists)meta.push({key:'librarySort',value:archive.librarySort});
-      meta.push(...entries.map(t=>({key:'songEdit:'+t.id,value:null})));
+      meta.push(...entries.flatMap(t=>[{key:'songEdit:'+t.id,value:null},{key:'trackState:'+t.id,value:null}]));
       await write('tracks',entries,[],true,meta); resetPlayer();
       offeredBackup = null; preparedBackup = null; $('song-search').value = ''; await reload();
       notify('שוחזרו '+entries.length+' שירים ו־'+archive.playlists.length+' פלייליסטים');
@@ -656,7 +676,7 @@
       const order=listed();const i=order.findIndex(t=>t.id===id);const j=i+delta;if(i<0||j<0||j>=order.length)return;
       [order[i],order[j]]=[order[j],order[i]];
       if(activePlaylist()) { const p=activePlaylist();await write('meta',[{key:'playlists',value:playlists.map(q=>q.id===p.id?{...q,sortMode:'manual',trackIds:order.map(t=>t.id)}:q)}],[],true); }
-      else await write('tracks',order.map((t,i)=>({...t,order:i})),[],true,[{key:'librarySort',value:'manual'}]);
+      else await updateTrackState(order.map((t,i)=>({id:t.id,order:i})),[{key:'librarySort',value:'manual'}]);
       await reload();
     });
   }
@@ -762,7 +782,7 @@
     }
     next=PL.restoreMemberships(next,items);
     const meta=[{key:'playlists',value:PL.validate(next)},{key:'trash',value:trash.filter(item=>!wanted.has(item.id))}];
-    await write('tracks',records,[],true,meta);await reload();renderTrash();$('undo-bar').hidden=true;notify(items.length===1?'הפריט שוחזר':items.length+' פריטים שוחזרו');
+    await updateTrackState(records.map(t=>({id:t.id,hidden:false})),meta);await reload();renderTrash();$('undo-bar').hidden=true;notify(items.length===1?'הפריט שוחזר':items.length+' פריטים שוחזרו');
   }
   async function purgeTrashItem(id) {
     const item=trash.find(t=>t.id===id);if(!item||!confirm('למחוק לצמיתות את ״'+item.title+'״? לא ניתן יהיה לשחזר מתוך הנגן. גיבוי שכבר שמרת וקובץ המקור אינם נמחקים.'))return;
@@ -770,7 +790,7 @@
       const meta=[{key:'trash',value:trash.filter(t=>t.id!==id)}];
       if(item.kind==='song'){
         const track=await read('tracks',item.trackId);
-        if(track?.hidden){if(track.source==='local')await write('tracks',[],[track.id],false,meta);else{const record={...track,trashPurged:true};delete record.blob;await write('tracks',[record],[],false,meta);}}
+        if(track?.hidden){meta.push({key:'trackState:'+track.id,value:null},{key:'songEdit:'+track.id,value:null});if(track.source==='local')await write('tracks',[],[track.id],false,meta);else{const record={...track,trashPurged:true};delete record.blob;await write('tracks',[record],[],false,meta);}}
         else await write('meta',meta);
       }else await write('meta',meta);
       await reload();renderTrash();if(lastUndoId===id)$('undo-bar').hidden=true;refreshStorageEstimate();notify('הפריט נמחק לצמיתות',5000);
