@@ -66,7 +66,13 @@ button.song-animal{padding:0;background:transparent;flex:none}button.song-name{d
 
 /* Keep dialog titles and close buttons visible while the content scrolls.
    The drawer and playlist editor already have separate scrolling lists. */
-dialog:not(.playlists-drawer):not(#playlist-editor){--dialog-inset:22px;scroll-padding-top:88px}
+dialog:not(.playlists-drawer):not(#playlist-editor){--dialog-inset:22px;scroll-padding-top:88px;overflow-x:hidden;overscroll-behavior-x:none;overflow-wrap:anywhere}
 dialog.parents{--dialog-inset:20px}
-dialog:not(.playlists-drawer):not(#playlist-editor) .dialog-top{position:sticky;top:calc(-1 * var(--dialog-inset));z-index:2;background:#fff9f0;margin:calc(-1 * var(--dialog-inset)) calc(-1 * var(--dialog-inset)) 20px;padding:14px var(--dialog-inset);border-bottom:1px solid #e1d7f1;gap:12px}
+dialog:not(.playlists-drawer):not(#playlist-editor) .dialog-top{position:sticky;top:calc(-1 * var(--dialog-inset));z-index:2;background:#fff9f0;margin:calc(-1 * var(--dialog-inset)) 0 20px;padding:14px 0;border-bottom:1px solid #e1d7f1;gap:12px}
 dialog .dialog-top .close{flex-shrink:0}
+
+/* Keep headers inside the content width, including RTL scrollbars. */
+dialog .dialog-top h2{min-width:0;overflow-wrap:anywhere}
+/* A filled focus state avoids a second circle around the close button. */
+dialog .close:focus{outline:none}
+dialog .close:focus-visible{background:#d9c8ef;color:#433b65}

@@ -128,3 +128,9 @@ Browser QA at 390 × 844 verified the classic player dimensions (220 px height /
 Scrollable dialogs now keep their title and close button in an opaque sticky header. This covers Settings, song editing, the parent gate, playlist assignment, deleted items and import results, including when the outer dialog scrolls. The playlist drawer and playlist editor retain their existing fixed headers and separate scrolling lists. Backup confirmation still uses its explicit confirmation/cancel actions.
 
 Browser layout checks at 390 × 844 and 320 × 568 forced long content into each of the six dialogs and verified the close button remained within the visible dialog bounds at the bottom of scrolling. The four required Node suites passed.
+
+## Dialog width and close focus — 2026.11.14.12-test
+
+Removed horizontal negative margins from sticky dialog headers, contained horizontal overflow and enabled wrapping for long text. Header titles can shrink without pushing the close button sideways. Close controls use a filled keyboard-focus state instead of an additional circular outline; focus remains visible for keyboard users.
+
+Browser checks reproduced 2 px of horizontal overflow in Settings before the change. Afterwards all six scrollable dialogs had scrollWidth equal to clientWidth at both 320 × 568 and 390 × 844, and all close buttons stayed visible at scroll end. Keyboard Tab/Shift+Tab verified focus-visible, changed background and no outline. The four required suites passed.

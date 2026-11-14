@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.11-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.12-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
