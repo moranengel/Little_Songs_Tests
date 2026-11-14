@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.13-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.14-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
@@ -61,8 +61,12 @@
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('השמירה לא הושלמה.'));
     });
   }
+  function applySongEdits(records, metadata) {
+    const edits=new Map(metadata.filter(item=>item.key.startsWith('songEdit:')&&item.value&&typeof item.value.title==='string'&&typeof item.value.icon==='string').map(item=>[item.key.slice(9),item.value]));
+    return records.map(track=>{const edit=edits.get(track.id);return edit?{...track,title:edit.title,icon:edit.icon,renamed:true}:track;});
+  }
   async function reload() {
-    tracks = await read('tracks');
+    tracks = applySongEdits(await read('tracks'),await read('meta'));
     childMode=!!(await read('meta','childMode'))?.value;
     trash=(await read('meta','trash'))?.value || [];
     const legacyHidden=tracks.filter(t=>t.hidden&&!t.trashPurged&&!trash.some(item=>item.kind==='song'&&item.trackId===t.id));
@@ -300,14 +304,19 @@
     status.textContent='שומרים את השינויים…';
     await busy(async () => {
       try {
-        const track=await read('tracks',id);
-        if(!track||track.hidden)throw new Error('השיר אינו נמצא עוד בספרייה.');
+        const stored=await read('tracks',id);
+        const track=tracks.find(t=>t.id===id)||stored;
+        if(!stored||stored.hidden)throw new Error('השיר אינו נמצא עוד בספרייה.');
         const nextPlaylists=playlists.map(p=>({...p,trackIds:assigned.has(p.id) ? p.trackIds.includes(id)?p.trackIds:[...p.trackIds,id] : p.trackIds.filter(trackId=>trackId!==id)}));
         const updated={...track,title,icon,renamed:true};
-        await write('tracks',[updated],[],title!==track.title || icon!==iconFor(track) || JSON.stringify(nextPlaylists)!==JSON.stringify(playlists),[{key:'playlists',value:nextPlaylists}]);
-        await reload();
+        // Editing metadata must not re-serialize an unchanged audio Blob.
+        await write('meta',[{key:'songEdit:'+id,value:{title,icon}},{key:'playlists',value:nextPlaylists}],[],title!==track.title || icon!==iconFor(track) || JSON.stringify(nextPlaylists)!==JSON.stringify(playlists));
+        $('edit-dialog').close();status.textContent='';
+        tracks=tracks.map(t=>t.id===id?updated:t);playlists=nextPlaylists;
         if(currentId===id)setMediaInfo(updated);
-        $('edit-dialog').close();status.textContent='';notify('השם והאייקון נשמרו');
+        notify('השם והאייקון נשמרו');
+        try { await reload(); } catch(error) { notify('השינויים נשמרו. לא ניתן לרענן את התצוגה: '+message(error)); }
+
       } catch(error) {
         status.textContent='לא ניתן לשמור: '+message(error)+' אפשר לנסות שוב בלי לצאת מהעריכה.';
         throw error;
@@ -436,6 +445,7 @@
       const incoming=new Map(archive.playlists.map(p=>[p.id,p]));
       const merged=[...playlists.filter(p=>!incoming.has(p.id)),...archive.playlists];
       const restoredIds=new Set(entries.map(t=>t.id));const meta=[{key:'playlists',value:merged},{key:'trash',value:trash.filter(item=>item.kind!=='song'||!restoredIds.has(item.trackId))}];if(archive.hasPlaylists)meta.push({key:'librarySort',value:archive.librarySort});
+      meta.push(...entries.map(t=>({key:'songEdit:'+t.id,value:null})));
       await write('tracks',entries,[],true,meta); resetPlayer();
       offeredBackup = null; preparedBackup = null; $('song-search').value = ''; await reload();
       notify('שוחזרו '+entries.length+' שירים ו־'+archive.playlists.length+' פלייליסטים');
