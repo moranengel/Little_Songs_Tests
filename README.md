@@ -124,3 +124,5 @@ Settings now includes optional child mode, recoverable deletion, storage figures
 The main list now includes song action menus and multi-selection for playlist assignment or recoverable deletion. Playlist copies are editable drafts saved explicitly. Import batches show per-file results. Personal playlist photos, resume position and sleep timer are not included.
 
 The sidebar supports integrated edit controls, name search, optional pinned favorites and manual ordering inside pinned/unpinned groups. Use the sort icon again to save; closing cancels an unsaved order. Pin flags and order are included in backups. Inside a custom playlist, single or multiple removal changes only membership and has a five-second undo; All Songs retains recoverable library deletion.
+
+A reversible compact player trial is available in testing: Settings → Player Design → Compact / Classic. The classic player is retained and can be restored instantly without changing the library. The visual preference is saved on the device.

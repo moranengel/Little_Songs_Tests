@@ -1,13 +1,13 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="he" dir="rtl" data-player-layout="compact">
 <head>
 <meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; object-src 'none'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fff9f0"><meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="זמן לשיר — בדיקות">
 <meta name="description" content="נגן שירי הילדים שלנו, עם שמירה להאזנה ללא אינטרנט">
 <link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icons/rainbow-note-apple.png">
-<link rel="icon" type="image/png" href="./icons/rainbow-note-192.png"><link rel="stylesheet" href="./assets/style-ff221b875c0e.css">
-<title>זמן לשיר! — בדיקות</title><script defer src="./assets/safeguards-82cd45f15ff0.js"></script><script defer src="./assets/playlists-09419b253491.js"></script><script defer src="./assets/backup-0d4a938a4d82.js"></script><script defer src="./assets/app-d02f61655a78.js"></script>
+<link rel="icon" type="image/png" href="./icons/rainbow-note-192.png"><link rel="stylesheet" href="./assets/style-e256a0b037e5.css">
+<title>זמן לשיר! — בדיקות</title><script defer src="./assets/safeguards-82cd45f15ff0.js"></script><script defer src="./assets/playlists-09419b253491.js"></script><script defer src="./assets/backup-0d4a938a4d82.js"></script><script defer src="./assets/app-c793c17595b4.js"></script>
 </head>
 <body>
 <main class="app">
@@ -32,6 +32,7 @@
 <button id="child-mode-toggle" class="outline action" aria-pressed="false">הפעלת מצב ילדים</button><p class="hint">מצב ילדים מגן מפני שינויים בטעות. לפתיחת העריכה פותרים תרגיל חשבון. זו אינה סיסמת אבטחה.</p><p class="hint">השירים שמוסיפים כאן, השמות והאייקונים נשמרים במכשיר הזה בלבד.</p>
 <div class="parent-actions"><button id="manage-playlists" class="outline action">ניהול פלייליסטים</button><button id="download-all" class="secondary action">↓ שמירת כל השירים לאופליין</button><button id="restore" class="text-button" hidden>שחזור פריטים שנמחקו</button></div>
 <p id="offline-status" class="offline-status" role="status">בודקים את השמירה לאופליין…</p><p id="download-progress" class="hint" role="status"></p>
+<section class="player-design-panel"><h3>עיצוב הנגן</h3><label for="player-layout">בחירת תצוגה</label><select id="player-layout"><option value="compact">נגן קומפקטי — חדש</option><option value="classic">נגן קלאסי — העיצוב הקודם</option></select><p class="hint">אפשר לחזור לעיצוב הקודם בכל רגע. הבחירה נשמרת במכשיר הזה ומשנה רק את התצוגה, בלי לשנות שירים או פלייליסטים.</p></section>
 <section class="storage-panel" aria-labelledby="storage-title"><h3 id="storage-title">אחסון וגיבוי</h3><p id="storage-summary" class="hint" role="status"></p><p id="storage-estimate" class="hint"></p><button id="open-trash" class="outline action">שחזור פריטים שנמחקו</button><p class="hint">פריטים שנמחקו נשמרים לשחזור במכשיר ותופסים מקום. הגיבוי כולל את הספרייה הפעילה בלבד.</p></section>
 <section class="version-panel" aria-labelledby="version-title"><h3 id="version-title">גרסה ועדכונים</h3><p id="app-version" class="hint"></p><p id="update-status" class="hint" role="status"></p><div class="backup-actions"><button id="check-update" class="outline action">בדיקת עדכון לאפליקציה</button><button id="apply-update" class="primary action" hidden>טעינת העדכון</button></div></section>
 <section class="backup-panel" aria-labelledby="backup-title"><h3 id="backup-title">גיבוי ושחזור</h3>

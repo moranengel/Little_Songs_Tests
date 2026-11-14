@@ -108,3 +108,11 @@ While editing, song rows use a noninteractive layout container with separate nat
 - Single or batch membership removal offers Undo Removal for five seconds. Undo restores the removed IDs at their original positions without changing library records or other playlists. It skips songs no longer available and does not recreate a deleted playlist.
 
 Validation: seven suites, including stable grouping, pin/unpin placement, cross-group movement rejection, legacy pin compatibility and backup round-trip. Browser QA at 390 × 844 verified integrated pencil, filtering and no-results state, sort disabled during search, pinning, arrow and drag movement, save/reload persistence, closing to cancel, unpin-to-end, nonselecting editor entry, editor without outer overflow, adult gating, contextual batch labels, single/batch removal and exact-order undo, library count and other playlists unchanged.
+
+## Reversible compact player trial — 2026.11.14.9-test
+
+The new compact player is the testing default. Settings → Player Design offers Compact (new) and Classic (previous). The device-local preference lives in meta.playerLayout; it does not increment backup revisions or alter songs, playlists, playback queues or archive format. The existing player DOM and classic CSS remain, with compact-only grid overrides. Switching layouts updates presentation without reloading or resetting audio.
+
+The compact layout has three rows: current song plus icon-only shuffle/repeat, large previous/play/next controls, then seek/time. Existing accessible names and repeat states remain. Full text mode labels return in classic view. Controls use native buttons and SVG transport icons.
+
+Browser QA at 390 × 844 measured compact height 170 px versus classic 220 px; compact play 68 px versus 50 px, and next/previous 54 px. Switching to classic kept audio playing and survived reload; switching back to compact also persisted. Play/pause, next/previous, shuffle and repeat were verified. A 320 × 568 preview had no horizontal player overflow, and repeat-one fits its 44 px control. No changes to production.

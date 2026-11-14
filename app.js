@@ -2,8 +2,9 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.8-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.9-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
+  let playerLayout='compact';
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
   const PL = LittleSongsPlaylists;
@@ -64,6 +65,7 @@
   async function reload() {
     tracks = await read('tracks');
     childMode=!!(await read('meta','childMode'))?.value;
+    playerLayout=(await read('meta','playerLayout'))?.value==='classic'?'classic':'compact';applyPlayerLayout();
     trash=(await read('meta','trash'))?.value || [];
     const legacyHidden=tracks.filter(t=>t.hidden&&!t.trashPurged&&!trash.some(item=>item.kind==='song'&&item.trackId===t.id));
     if(legacyHidden.length){trash.push(...legacyHidden.map(t=>({id:crypto.randomUUID(),kind:'song',trackId:t.id,title:t.title,deletedAt:Date.now(),memberships:[]})));await write('meta',[{key:'trash',value:trash}]);}
@@ -78,9 +80,9 @@
   }
   async function busy(task) {
     if (operation) return;
-    operation = true; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = true);
+    operation = true; document.querySelectorAll('.parent-actions button,#player-layout,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = true);
     try { await task(); } catch(error) { if ($('parents').open) backupError = message(error); notify(message(error)); }
-    finally { operation = false; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = false); renderBackup(); renderProtection(); renderBulk();renderDrawerControls(); }
+    finally { operation = false; document.querySelectorAll('.parent-actions button,#player-layout,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = false); renderBackup(); renderProtection(); renderBulk();renderDrawerControls(); }
   }
   function validateCatalog(data) {
     if (!data || !Array.isArray(data.songs)) throw new Error('רשימת השירים באתר אינה תקינה.');
@@ -148,22 +150,31 @@
     if (next) return playSong(next,false,true);
     if (ended) { audio.pause(); syncPlayer(); }
   }
+  function applyPlayerLayout(){document.documentElement.dataset.playerLayout=playerLayout;$('player-layout').value=playerLayout;}
+  function renderTransport(isPlaying){
+    for(const [id,key,text] of [['play',isPlaying?'pause':'play',isPlaying?'Ⅱ':'▶︎'],['previous','previous','⏮︎'],['next','next','⏭︎']]){
+      const button=$(id),state=playerLayout+':'+key;if(button.dataset.visualState===state)continue;button.dataset.visualState=state;
+      if(playerLayout==='classic'){button.textContent=text;continue;}
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width',id==='play'?'34':'28');svg.setAttribute('height',id==='play'?'34':'28');svg.setAttribute('fill','currentColor');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',{play:'M7 3v18l15-9Z',pause:'M6 3h4v18H6zM14 3h4v18h-4z',previous:'M4 4h3v16H4zM20 4v16L7 12Z',next:'M17 4h3v16h-3zM4 4v16l13-8Z'}[key]);svg.append(path);button.replaceChildren(svg);
+    }
+  }
+  $('player-layout').addEventListener('change',()=>{const value=$('player-layout').value==='classic'?'classic':'compact';busy(async()=>{await write('meta',[{key:'playerLayout',value}]);playerLayout=value;applyPlayerLayout();syncPlayer();});});
   function syncPlayer() {
     const track = current(); const list = listed();
     $('now-title').textContent = track?.title || 'בוחרים ומקשיבים';
     $('now-icon').textContent = track ? iconFor(track) : '🧸';
     $('now-label').textContent = track ? 'השיר שבחרנו' : 'איזה שיר נשמע היום?';
     const isPlaying = !!track && !audio.paused && !audio.ended;
-    $('play').textContent = isPlaying ? 'Ⅱ' : '▶︎'; $('play').setAttribute('aria-label',isPlaying ? 'השהיה' : 'ניגון'); $('play').disabled = !track && !list.length;
+    renderTransport(isPlaying); $('play').setAttribute('aria-label',isPlaying ? 'השהיה' : 'ניגון'); $('play').disabled = !track && !list.length;
     $('play-state').textContent = !track ? 'קצת מוזיקה, המון שמחה' : audio.error ? 'לא ניתן לנגן את הקובץ' : audio.ended ? 'איזה כיף לשיר ביחד' : isPlaying ? 'שרים ביחד 🎶' : 'מוכנים להמשיך?';
     const duration = Number.isFinite(audio.duration) ? audio.duration : track?.duration || 0;
     $('elapsed').textContent = time(audio.currentTime); $('duration').textContent = time(duration);
     $('seek').disabled = !track || !duration; $('seek').max = String(Math.max(1,duration));
     if (!scrubbing) $('seek').value = String(Math.min(audio.currentTime || 0,Math.max(1,duration)));
     const queue = playableQueue(); $('previous').disabled = !PL.adjacent(queue,currentId,-1,repeat); $('next').disabled = !PL.adjacent(queue,currentId,1,repeat);
-    $('shuffle').setAttribute('aria-pressed',String(shuffle));
+    $('shuffle').textContent=playerLayout==='compact'?'⤨':'⤨ ערבוב';$('shuffle').setAttribute('aria-label',shuffle?'ערבוב מופעל':'ערבוב כבוי');$('shuffle').title=shuffle?'ערבוב מופעל':'ערבוב כבוי';$('shuffle').setAttribute('aria-pressed',String(shuffle));
     const repeatLabel = repeat==='one' ? 'חזרה על שיר אחד' : repeat==='all' ? 'חזרה על הפלייליסט' : 'חזרה כבויה';
-    $('repeat').textContent = (repeat==='one' ? '↻ 1 ' : '↻ ')+repeatLabel; $('repeat').setAttribute('aria-label',repeatLabel); $('repeat').classList.toggle('repeat-active',repeat!=='off');
+    $('repeat').textContent = playerLayout==='compact'?(repeat==='one'?'↻¹':'↻'):(repeat==='one' ? '↻ 1 ' : '↻ ')+repeatLabel;$('repeat').title=repeatLabel; $('repeat').setAttribute('aria-label',repeatLabel); $('repeat').classList.toggle('repeat-active',repeat!=='off');
     $('queue-label').textContent = track ? 'מנגנים מתוך: '+playlistName(queuePlaylistId) : 'בחירת שיר תתחיל את הרשימה';
     document.querySelectorAll('.song-card').forEach(card => {
       const active = card.dataset.id === currentId; card.classList.toggle('active',active);
@@ -708,5 +719,5 @@
     try { db = await openDB(); await reload(); setupOffline(); checkUpdate(true); await refreshCatalog(true); }
     catch(error) { $('fatal').hidden = false; $('fatal').textContent = 'לא ניתן לפתוח את האחסון המקומי. נסי לפתוח בספארי מחוץ לגלישה פרטית. '+message(error); }
   }
-  start();
+  applyPlayerLayout();syncPlayer();start();
 })();
