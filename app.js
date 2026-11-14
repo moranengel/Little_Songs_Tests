@@ -6,6 +6,7 @@
   let playlists = [], activePlaylistId = 'all', librarySort = 'manual';
   let queueIds = [], queuePlaylistId = 'all', shuffle = false, repeat = 'off';
   let playlistEditingId = null, draftTrackIds = new Set(), importTargetId = 'all';
+  let draftOrdering = false, draftOrderChanged = false, draftDrag = null;
   const icons = ['🐻','🐰','🐸','🐳','🦁','🦋','🐥','🐼','🐶','🐱','🐘','🦄','🚂','🚗','⭐','🌈','🌙','☀️','🌸','🎵'];
   const colors = ['#ffe3cd','#f7dde9','#ddeed5','#d9edf8','#fff0be','#e8dff8'];
   let db, tracks = [], currentId = null, objectURL = null, editing = false;
@@ -165,8 +166,11 @@
   }
   function render() {
     const library = visible(); const all = listed(); const list = all.filter(matchesSearch); $('song-list').replaceChildren(); $('empty').hidden = !!all.length; $('no-results').hidden = !all.length || !!list.length; $('count').textContent = list.length === all.length ? all.length+' שירים' : list.length+' מתוך '+all.length;
-    $('list-title').textContent = (activePlaylist()?.icon || '🎶')+' '+playlistName(activePlaylistId);
-    $('manage-current').hidden = activePlaylistId==='all'; $('song-sort').value = activePlaylist()?.sortMode || librarySort;
+    const title = (activePlaylist()?.icon || '🎶')+' '+playlistName(activePlaylistId);
+    $('list-title').replaceChildren();
+    if(activePlaylist()) { const button=document.createElement('button');button.type='button';button.className='playlist-title-button';button.textContent=title;button.setAttribute('aria-label','עריכת הפלייליסט '+playlistName(activePlaylistId));button.addEventListener('click',()=>editPlaylist(activePlaylistId));$('list-title').append(button); }
+    else $('list-title').textContent=title;
+ $('song-sort').value = activePlaylist()?.sortMode || librarySort;
     $('finish-editing').hidden = !editing; $('manual-order-help').hidden = !editing;
     $('empty-title').textContent = activePlaylistId==='all' ? 'כאן יגורו השירים שלכם' : 'הפלייליסט הזה עדיין ריק';
     $('empty-hint').textContent = activePlaylistId==='all' ? 'אפשר להוסיף קובצי שירים או לשחזר גיבוי בהגדרות.' : 'בחרו שירים מהספרייה או הוסיפו קובצי שירים ישירות לפלייליסט.';
@@ -407,26 +411,69 @@
   function openDrawer() { if(operation)return; $('parents').close();renderDrawer();$('playlists-drawer').showModal();$('playlists-toggle').setAttribute('aria-expanded','true'); }
   function editPlaylist(id=null) {
     if(operation)return;
-    const p=playlists.find(p=>p.id===id);playlistEditingId=p?.id || null;draftTrackIds=new Set(p?.trackIds || []);
+    const p=playlists.find(p=>p.id===id);playlistEditingId=p?.id || null;draftTrackIds=new Set(p?PL.select(tracks,p).map(t=>t.id):[]);draftOrdering=false;draftOrderChanged=false;
     $('playlists-drawer').close();$('parents').close();
     $('playlist-editor-title').textContent=p?'עריכת הפלייליסט':'פלייליסט חדש';$('playlist-name').value=p?.name || '';
     $('playlist-icon').value=p?.icon || '🎵';$('playlist-color').value=p?.color || '#eee5fa';$('playlist-song-search').value='';$('delete-playlist').hidden=!p;$('playlist-editor-status').textContent='';
     renderPlaylistChoices();$('playlist-editor').showModal();
   }
+  function moveDraftTrack(id, targetId) {
+    const ids=[...draftTrackIds], from=ids.indexOf(id), to=ids.indexOf(targetId);
+    if(from<0||to<0||from===to)return false;
+    ids.splice(from,1);ids.splice(to,0,id);draftTrackIds=new Set(ids);draftOrderChanged=true;return true;
+  }
   function renderPlaylistChoices() {
-    const root=$('playlist-track-options');root.replaceChildren();
-    const query=PL.normalize($('playlist-song-search').value);const all=visible();const filtered=all.filter(t=>PL.normalize(t.title).includes(query));
-    for(const t of filtered){const row=document.createElement('label');row.className='check-row';const box=document.createElement('input');box.type='checkbox';box.value=t.id;box.checked=draftTrackIds.has(t.id);box.addEventListener('change',()=>{box.checked?draftTrackIds.add(t.id):draftTrackIds.delete(t.id);$('selection-count').textContent=draftTrackIds.size+' נבחרו';});const label=document.createElement('span');label.textContent=iconFor(t)+' '+t.title;row.append(box,label);root.append(row);}
-    if(!filtered.length){const p=document.createElement('p');p.className='hint';p.textContent=all.length?'לא נמצאו שירים לחיפוש הזה.':'הספרייה ריקה. אפשר לשמור את הפלייליסט ולהוסיף אליו שירים בהמשך.';root.append(p);}
+    const root=$('playlist-track-options');root.replaceChildren();root.classList.toggle('ordering',draftOrdering);
+    $('playlist-order-toggle').textContent=draftOrdering?'חזרה לבחירת שירים':'סידור שירים';
+    $('playlist-order-toggle').setAttribute('aria-pressed',String(draftOrdering));
+    $('playlist-selection-fields').hidden=draftOrdering;
+    $('playlist-order-help').hidden=!draftOrdering;
+    const query=PL.normalize($('playlist-song-search').value), all=visible();
+    const filtered=draftOrdering?[...draftTrackIds].map(id=>all.find(t=>t.id===id)).filter(Boolean):all.filter(t=>PL.normalize(t.title).includes(query));
+    for(const [index,t] of filtered.entries()) {
+      const row=document.createElement(draftOrdering?'div':'label');row.className='check-row';row.dataset.trackId=t.id;
+      const label=document.createElement('span');label.className='draft-track-title';label.textContent=iconFor(t)+' '+t.title;
+      if(draftOrdering) {
+        const handle=document.createElement('button');handle.type='button';handle.className='drag-handle';handle.textContent='⠿';handle.setAttribute('aria-label','גרירת '+t.title);handle.addEventListener('pointerdown',event=>startDraftDrag(event,row,t.id));row.append(handle,label);
+        for(const [delta,text] of [[-1,'↑'],[1,'↓']]) {
+          const button=document.createElement('button');button.type='button';button.className='draft-move';button.textContent=text;button.disabled=index+delta<0||index+delta>=filtered.length;
+          button.setAttribute('aria-label',(delta<0?'העלאת ':'הורדת ')+t.title);
+          button.addEventListener('click',()=>{if(moveDraftTrack(t.id,filtered[index+delta].id)){const scroll=root.scrollTop;renderPlaylistChoices();root.scrollTop=scroll;const moved=[...root.children].find(r=>r.dataset.trackId===t.id);moved?.querySelector(delta<0?'.draft-move':'.draft-move:last-child')?.focus({preventScroll:true});$('playlist-editor-status').textContent='סדר השירים עודכן. לחצי על שמירת הפלייליסט כדי לשמור.';}});row.append(button);
+        }
+      } else {
+        const box=document.createElement('input');box.type='checkbox';box.value=t.id;box.checked=draftTrackIds.has(t.id);
+        box.addEventListener('change',()=>{box.checked?draftTrackIds.add(t.id):draftTrackIds.delete(t.id);$('selection-count').textContent=draftTrackIds.size+' נבחרו';});row.append(box,label);
+      }
+      root.append(row);
+    }
+    if(!filtered.length){const p=document.createElement('p');p.className='hint';p.textContent=draftOrdering?'בחרי שירים לפלייליסט כדי לסדר אותם.':all.length?'לא נמצאו שירים לחיפוש הזה.':'הספרייה ריקה. אפשר לשמור את הפלייליסט ולהוסיף אליו שירים בהמשך.';root.append(p);}
     $('selection-count').textContent=draftTrackIds.size+' נבחרו';
+  }
+  function startDraftDrag(event,row,id) {
+    if(event.button!==0||draftDrag)return;
+    event.preventDefault();const handle=event.currentTarget,root=$('playlist-track-options');
+    const initial=[...draftTrackIds],wasChanged=draftOrderChanged;
+    draftDrag={id};handle.setPointerCapture(event.pointerId);row.classList.add('dragging');
+    const move=e=>{
+      const bounds=root.getBoundingClientRect();if(e.clientY<bounds.top+40)root.scrollTop-=18;else if(e.clientY>bounds.bottom-40)root.scrollTop+=18;
+      const target=[...root.children].find(r=>r!==row&&r.dataset.trackId&&e.clientY>=r.getBoundingClientRect().top&&e.clientY<=r.getBoundingClientRect().bottom);
+      if(target&&moveDraftTrack(id,target.dataset.trackId)){const order=[...draftTrackIds];if(order.indexOf(id)<order.indexOf(target.dataset.trackId))root.insertBefore(row,target);else root.insertBefore(row,target.nextSibling);handle.setPointerCapture(e.pointerId);}
+    };
+    const finish=e=>{
+      handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',finish);handle.removeEventListener('pointercancel',finish);
+      if(e.type==='pointercancel'){draftTrackIds=new Set(initial);draftOrderChanged=wasChanged;}
+      draftDrag=null;const scroll=root.scrollTop;renderPlaylistChoices();root.scrollTop=scroll;
+      if(draftOrderChanged)$('playlist-editor-status').textContent='סדר השירים עודכן. לחצי על שמירת הפלייליסט כדי לשמור.';
+    };
+    handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish);
   }
   async function savePlaylist(event) {
     event.preventDefault();
     await busy(async()=>{
       try{
         const old=playlists.find(p=>p.id===playlistEditingId);const selected=new Set([...draftTrackIds].filter(id=>visible().some(t=>t.id===id)));
-        const ids=[...(old?.trackIds || []).filter(id=>selected.has(id)),...[...selected].filter(id=>!old?.trackIds.includes(id))];
-        const p={id:old?.id || 'playlist:'+crypto.randomUUID(),name:$('playlist-name').value.trim(),icon:$('playlist-icon').value.trim(),color:$('playlist-color').value,trackIds:ids,sortMode:old?.sortMode || 'manual'};
+        const ids=draftOrderChanged?[...selected]:[...(old?.trackIds || []).filter(id=>selected.has(id)),...[...selected].filter(id=>!old?.trackIds.includes(id))];
+        const p={id:old?.id || 'playlist:'+crypto.randomUUID(),name:$('playlist-name').value.trim(),icon:$('playlist-icon').value.trim(),color:$('playlist-color').value,trackIds:ids,sortMode:draftOrderChanged?'manual':old?.sortMode || 'manual'};
         const next=PL.validate([...playlists.filter(q=>q.id!==p.id),p]);
         // Preserve the sidebar order of an existing playlist when renaming it.
         const ordered=old?playlists.map(q=>q.id===p.id?next.find(n=>n.id===p.id):q):next;
@@ -460,7 +507,7 @@
   $('playlists-drawer').addEventListener('close',()=>$('playlists-toggle').setAttribute('aria-expanded','false'));
   $('manage-playlists').addEventListener('click',openDrawer);
   $('create-playlist').addEventListener('click',()=>editPlaylist());
-  $('manage-current').addEventListener('click',()=>editPlaylist(activePlaylistId));
+  $('playlist-order-toggle').addEventListener('click',()=>{draftOrdering=!draftOrdering;renderPlaylistChoices();$('playlist-track-options').scrollTop=0;});
   $('playlist-editor-close').addEventListener('click',()=>$('playlist-editor').close());
   $('playlist-form').addEventListener('submit',savePlaylist);
   $('delete-playlist').addEventListener('click',deletePlaylist);
