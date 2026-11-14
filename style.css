@@ -64,15 +64,16 @@ button.song-animal{padding:0;background:transparent;flex:none}button.song-name{d
 
 .drawer-header{flex-wrap:wrap}.drawer-header h2{flex-basis:100%;margin:0}.drawer-header-actions{width:100%;justify-content:flex-end}.drawer-header-actions .drawer-tool{display:grid;place-items:center;background:transparent;color:var(--purple);padding:8px;border-radius:10px}.drawer-header-actions #drawer-order-toggle[aria-pressed=true]{background:#eee5fa;box-shadow:inset 0 0 0 1px var(--purple)}.drawer-search-box{display:flex;gap:5px;flex:none;margin-bottom:8px}.drawer-search-box input{width:100%;min-width:0;border:1px solid #d9cfe2;border-radius:12px;padding:8px;font:inherit;font-size:16px;background:white}.drawer-search-box .drawer-tool{background:transparent;flex:none}#drawer-order-help{flex:none;margin:0 0 8px;font-size:11px}.playlist-nav-row{gap:0;border:2px solid transparent;border-radius:17px;overflow:hidden;flex-shrink:0}.playlist-nav-row.current{border-color:var(--purple)}.playlist-choice{flex:1;min-width:0;border:0;border-radius:0;background:transparent;padding:10px;gap:8px;width:auto}.playlist-choice[aria-current=true]{border:0}.playlist-choice>span:nth-child(2){min-width:0}.playlist-nav-edit{flex:none;min-width:42px;padding:6px;background:transparent;border-radius:0;font-size:21px}.playlist-choice:disabled{opacity:1;cursor:default}.drawer-order-controls{display:flex;align-items:center;gap:2px;padding:2px}.drawer-order-controls button{min-width:30px;min-height:42px;border-radius:8px;background:#ffffff70;padding:4px;font-size:17px}.drawer-drag{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}#playlist-editor .playlist-pin-label{display:flex;align-items:center;gap:8px;margin:7px 0 0;font-size:12px}.playlist-pin-label input{width:18px;height:18px;accent-color:var(--purple)}
 
-/* Keep dialog titles and close buttons visible while the content scrolls.
-   The drawer and playlist editor already have separate scrolling lists. */
-dialog:not(.playlists-drawer):not(#playlist-editor){--dialog-inset:22px;scroll-padding-top:88px;overflow-x:hidden;overscroll-behavior-x:none;overflow-wrap:anywhere}
-dialog.parents{--dialog-inset:20px}
-dialog:not(.playlists-drawer):not(#playlist-editor) .dialog-top{position:sticky;top:calc(-1 * var(--dialog-inset));z-index:2;background:#fff9f0;margin:calc(-1 * var(--dialog-inset)) 0 20px;padding:14px 0;border-bottom:1px solid #e1d7f1;gap:12px}
-dialog .dialog-top .close{flex-shrink:0}
-
-/* Keep headers inside the content width, including RTL scrollbars. */
+/* Fixed dialog frames: only the body scrolls, including in Safari RTL. */
+dialog.framed-dialog{width:calc(100vw - 28px);max-width:460px;max-height:85dvh;padding:0;margin:auto;overflow:hidden;overscroll-behavior:contain}
+dialog.framed-dialog[open]{display:flex;flex-direction:column}
+.framed-dialog>form{display:flex;flex-direction:column;flex:1;min-height:0;max-height:inherit;overflow:hidden;width:100%}
+.framed-dialog .dialog-top{flex:none;position:relative;z-index:1;margin:0;padding:14px 20px;gap:12px;background:#fff9f0;border-bottom:1px solid #e1d7f1;min-width:0}
+.framed-dialog .dialog-body{flex:1;min-height:0;min-width:0;max-width:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:0 20px 20px;overflow-wrap:anywhere;-webkit-overflow-scrolling:touch;touch-action:pan-y pinch-zoom}
+.framed-dialog .dialog-body>*{max-width:100%;min-width:0}
 dialog .dialog-top h2{min-width:0;overflow-wrap:anywhere}
-/* A filled focus state avoids a second circle around the close button. */
+dialog .dialog-top .close{flex-shrink:0}
+/* Filled keyboard focus avoids a second circle while remaining visible. */
 dialog .close:focus{outline:none}
 dialog .close:focus-visible{background:#d9c8ef;color:#433b65}
+#edit-status{color:#a53547}#edit-status:empty{display:none}

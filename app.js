@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.12-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.13-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
@@ -280,7 +280,7 @@
   function editSong(id) {
     if(childMode&&!adultUnlocked){requireAdult(()=>editSong(id));return;}
     const track = tracks.find(t => t.id === id); if (!track) return;
-    editingId = id; $('song-name').value = track.title; $('icon-options').replaceChildren();
+    $('edit-status').textContent=''; editingId = id; $('song-name').value = track.title; $('icon-options').replaceChildren();
     for (const icon of icons) { const b = document.createElement('button'); b.type = 'button'; b.className = 'icon-option'; b.textContent = icon; b.setAttribute('aria-label','בחירת '+icon); b.addEventListener('click',() => markIcon(icon)); $('icon-options').append(b); }
     markIcon(iconFor(track)); $('song-playlist-options').replaceChildren();
     for (const p of playlists) { const row=document.createElement('label');row.className='check-row';const check=document.createElement('input');check.type='checkbox';check.value=p.id;check.checked=p.trackIds.includes(id);const text=document.createElement('span');text.textContent=p.icon+' '+p.name;row.append(check,text);$('song-playlist-options').append(row); }
@@ -288,15 +288,30 @@
     $('edit-dialog').showModal();
   }
   async function saveEdit(event) {
-    event.preventDefault(); await busy(async () => {
-      const track = await read('tracks',editingId); if (!track) throw new Error('השיר אינו נמצא עוד בספרייה.');
-      const title = $('song-name').value.trim(); const icon = $('custom-icon').value.trim() || pickedIcon;
-      if (!title) throw new Error('הזיני שם לשיר.');
-      if ([...icon].length > 24) throw new Error('בחרי אימוג׳י אחד או סמל קצר.');
-      const assigned=new Set([...$('song-playlist-options').querySelectorAll('input:checked')].map(c=>c.value));
-      const nextPlaylists=playlists.map(p=>({...p,trackIds:assigned.has(p.id) ? p.trackIds.includes(track.id)?p.trackIds:[...p.trackIds,track.id] : p.trackIds.filter(id=>id!==track.id)}));
-      await write('tracks',[{...track,title,icon,renamed:true}],[],title!==track.title || icon!==iconFor(track) || JSON.stringify(nextPlaylists)!==JSON.stringify(playlists),[{key:'playlists',value:nextPlaylists}]); await reload();
-      if (currentId === track.id) setMediaInfo({...track,title}); $('edit-dialog').close(); notify('השם והאייקון נשמרו');
+    event.preventDefault();
+    const status=$('edit-status');
+    if(operation){status.textContent='ממתינים לסיום הפעולה הנוכחית. נסי שוב בעוד רגע.';return;}
+    // Capture the selected icon and fields before any asynchronous work.
+    const id=editingId, title=$('song-name').value.trim(), icon=pickedIcon.trim();
+    const assigned=new Set([...$('song-playlist-options').querySelectorAll('input:checked')].map(c=>c.value));
+    if(!title){status.textContent='הזיני שם לשיר.';$('song-name').focus();return;}
+    if(title.length>180){status.textContent='שם השיר ארוך מדי. אפשר להזין עד 180 תווים.';return;}
+    if(!icon||[...icon].length>24){status.textContent='בחרי אימוג׳י אחד או סמל קצר.';return;}
+    status.textContent='שומרים את השינויים…';
+    await busy(async () => {
+      try {
+        const track=await read('tracks',id);
+        if(!track||track.hidden)throw new Error('השיר אינו נמצא עוד בספרייה.');
+        const nextPlaylists=playlists.map(p=>({...p,trackIds:assigned.has(p.id) ? p.trackIds.includes(id)?p.trackIds:[...p.trackIds,id] : p.trackIds.filter(trackId=>trackId!==id)}));
+        const updated={...track,title,icon,renamed:true};
+        await write('tracks',[updated],[],title!==track.title || icon!==iconFor(track) || JSON.stringify(nextPlaylists)!==JSON.stringify(playlists),[{key:'playlists',value:nextPlaylists}]);
+        await reload();
+        if(currentId===id)setMediaInfo(updated);
+        $('edit-dialog').close();status.textContent='';notify('השם והאייקון נשמרו');
+      } catch(error) {
+        status.textContent='לא ניתן לשמור: '+message(error)+' אפשר לנסות שוב בלי לצאת מהעריכה.';
+        throw error;
+      }
     });
   }
   async function deleteSong(){await deleteTracks([editingId]);}

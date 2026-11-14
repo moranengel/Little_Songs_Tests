@@ -134,3 +134,11 @@ Browser layout checks at 390 × 844 and 320 × 568 forced long content into each
 Removed horizontal negative margins from sticky dialog headers, contained horizontal overflow and enabled wrapping for long text. Header titles can shrink without pushing the close button sideways. Close controls use a filled keyboard-focus state instead of an additional circular outline; focus remains visible for keyboard users.
 
 Browser checks reproduced 2 px of horizontal overflow in Settings before the change. Afterwards all six scrollable dialogs had scrollWidth equal to clientWidth at both 320 × 568 and 390 × 844, and all close buttons stayed visible at scroll end. Keyboard Tab/Shift+Tab verified focus-visible, changed background and no outline. The four required suites passed.
+
+## Song editor save feedback and fixed dialog frames — 2026.11.14.13-test
+
+The six scrollable dialogs now have a non-scrolling header and a separate vertically scrolling body, replacing sticky headers inside the scroll area. The dialog itself clips overflow and the body wraps long text, contains overscroll and permits vertical touch scrolling and pinch zoom. This addresses Safari/RTL horizontal movement reports without disabling page zoom.
+
+Song editing now captures ID, title, selected icon and playlist membership synchronously on submission, using the selected icon state as the source of truth. Native form validation is replaced with explicit name/icon validation and visible inline status/errors; failed writes can be retried without closing the editor. The original reported iPhone failure was not reproduced in desktop Chromium, so the exact original cause remains unconfirmed.
+
+Browser checks at 320 × 568 and 390 × 844 verified no horizontal overflow and close buttons visible while scrolling the body. UI checks saved name plus two successive icon choices, reopened and saved another icon without exiting edit mode, showed a validation error for an empty name, corrected it in the same window, saved a custom emoji and verified persistence after reload. A regression suite covers repeated saves, preserving audio/fingerprint data, failure/retry, validation and field changes during an asynchronous read. All eight Node suites passed. Real-device Safari confirmation remains needed.

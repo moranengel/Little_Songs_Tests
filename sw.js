@@ -1,7 +1,7 @@
 'use strict';
 const PREFIX = 'little-songs-test-shell:' + new URL(self.registration.scope).pathname + ':';
-const CACHE = PREFIX + 'v25';
-const SHELL = ["./","./index.html","./assets/style-d1970e2bb533.css","./assets/safeguards-82cd45f15ff0.js","./assets/playlists-09419b253491.js","./assets/backup-0d4a938a4d82.js","./assets/app-3213b43c39cf.js","./manifest.webmanifest","./songs.json","./icons/rainbow-note-192.png","./icons/rainbow-note-512.png","./icons/rainbow-note-apple.png"];
+const CACHE = PREFIX + 'v26';
+const SHELL = ["./","./index.html","./assets/style-b641c9d3e9ec.css","./assets/safeguards-82cd45f15ff0.js","./assets/playlists-09419b253491.js","./assets/backup-0d4a938a4d82.js","./assets/app-cb5178ae7c12.js","./manifest.webmanifest","./songs.json","./icons/rainbow-note-192.png","./icons/rainbow-note-512.png","./icons/rainbow-note-apple.png"];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting()));
 });
