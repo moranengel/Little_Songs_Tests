@@ -122,3 +122,9 @@ Browser QA at 390 × 844 measured compact height 170 px versus classic 220 px; c
 The compact layout experiment and its Settings selector have been removed. The original classic player is rendered regardless of a previous local layout preference; existing metadata is left untouched. Multi-selection is hidden until editing is active. Selecting songs is a submode of editing: finishing selection returns to editing, while the pencil exits both modes and clears selections. Row editing controls remain separate from the bulk selection targets.
 
 Browser QA at 390 × 844 verified the classic player dimensions (220 px height / 50 px play), no layout selector, bulk control hidden in listening view, adult gate, selection and selection exit, pencil exiting both modes, and ordinary playback. All seven Node suites passed; generated asset consistency was rechecked after final formatting.
+
+## Visible close buttons — 2026.11.14.11-test
+
+Scrollable dialogs now keep their title and close button in an opaque sticky header. This covers Settings, song editing, the parent gate, playlist assignment, deleted items and import results, including when the outer dialog scrolls. The playlist drawer and playlist editor retain their existing fixed headers and separate scrolling lists. Backup confirmation still uses its explicit confirmation/cancel actions.
+
+Browser layout checks at 390 × 844 and 320 × 568 forced long content into each of the six dialogs and verified the close button remained within the visible dialog bounds at the bottom of scrolling. The four required Node suites passed.
