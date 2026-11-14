@@ -63,3 +63,9 @@ The plus is a plain SVG with no circular background. The modal now spans the vie
 - GitHub account security, separate-origin hosting and backup encryption are not changed by these browser features. Existing local data and production are preserved.
 
 Validation: all five Node suites plus syntax and asset consistency. Browser QA at 390 × 844 verified renamed-byte duplicate detection, linking an existing song to an empty playlist without increasing library count, child challenge wrong/right answers, locking and persistence, song undo restoring membership, playlist recovery after reload, storage figures, current/new version states, local blob playback and no CSP violations. QA uses generated audio, never user songs. Sleep timer excluded.
+
+## Main-page song import — 2026.11.14.2-test
+
+The song import button now appears as a plus next to search in the main library toolbar, including populated playlists. It is no longer inside Settings. Import targets the selected playlist and the shared library, or only the library when All Songs is selected. The child-mode gate protects this entry point and the existing empty-state import action. The manual website-song-refresh button has been removed; application update checks remain separate. No playback-position persistence or other proposed additions were included.
+
+Verified in the 390 × 844 browser preview: absence of both old Settings controls, toolbar chooser opening, a new local song increasing a selected playlist from 1 to 2 and the library from 27 to 28, and a locked child-mode plus opening the adult challenge. All five test suites passed.

@@ -53,3 +53,5 @@ dialog.parents{margin:auto;padding:20px;background:#fff9f0;max-height:85dvh}
 .storage-panel,.version-panel{border-top:1px solid #ddd0e7;margin-top:20px;padding-top:12px}.storage-panel h3,.version-panel h3{font-size:16px;margin:8px 0}.undo-bar{position:fixed;z-index:12;bottom:calc(14px + env(safe-area-inset-bottom));left:14px;right:14px;max-width:510px;margin:auto;background:#eee5fa;border:1px solid #7054a2;border-radius:14px;padding:10px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px #433b6530}.undo-bar span{flex:1;min-width:0;overflow-wrap:anywhere}.undo-bar button{flex:none}.trash-row{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #eee5fa}.trash-row span{flex:1;overflow-wrap:anywhere}#trash-list{max-height:55dvh;overflow:auto}#adult-form .action{margin-top:12px;width:100%}#adult-error{color:#a53547}#child-lock{font-size:20px}.top-actions{gap:4px}
 
 .trash-row{flex-wrap:wrap}.trash-row span{flex-basis:100%}.trash-row .danger{margin-inline-start:auto}
+
+.section-heading{gap:8px}.section-heading h2{min-width:0;overflow-wrap:anywhere}.list-actions{flex:none;gap:4px}#import{color:var(--purple)}
