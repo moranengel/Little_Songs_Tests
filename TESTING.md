@@ -87,3 +87,9 @@ Validation: six Node suites, including independent copies, idempotent assignment
 ## Song actions visibility — 2026.11.14.5-test
 
 The per-song ellipsis appears only while main-page song editing is active. Finishing edits, entering multi-selection, switching to child lock or reloading returns the song list to its ordinary listening view without these controls.
+
+## Simpler song editing — 2026.11.14.6-test
+
+Per-song ellipsis menus have been removed. In editing mode, each row has a trash icon: custom playlists remove membership only; All Songs moves the track into recoverable deletion. Clicking the song name or animal icon opens name/icon editing. The pencil toggles editing on and off; there is no separate Finish Editing button. Multi-selection remains a main-page control. Deletion notices and the undo bar disappear after five seconds, while recovery remains available in Settings. Local audio captions now say “שמור במכשיר”.
+
+Browser QA at 390 × 844 verified hidden row controls in listening mode, adult gate before editing, row-click editor, pencil exit, playlist-only removal without decreasing library size, library deletion and five-second notices/undo visibility, and later recovery from Settings. All six suites passed.
