@@ -2,9 +2,8 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.9-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.10-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
-  let playerLayout='compact';
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
   const PL = LittleSongsPlaylists;
@@ -65,7 +64,6 @@
   async function reload() {
     tracks = await read('tracks');
     childMode=!!(await read('meta','childMode'))?.value;
-    playerLayout=(await read('meta','playerLayout'))?.value==='classic'?'classic':'compact';applyPlayerLayout();
     trash=(await read('meta','trash'))?.value || [];
     const legacyHidden=tracks.filter(t=>t.hidden&&!t.trashPurged&&!trash.some(item=>item.kind==='song'&&item.trackId===t.id));
     if(legacyHidden.length){trash.push(...legacyHidden.map(t=>({id:crypto.randomUUID(),kind:'song',trackId:t.id,title:t.title,deletedAt:Date.now(),memberships:[]})));await write('meta',[{key:'trash',value:trash}]);}
@@ -80,9 +78,9 @@
   }
   async function busy(task) {
     if (operation) return;
-    operation = true; document.querySelectorAll('.parent-actions button,#player-layout,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = true);
+    operation = true; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = true);
     try { await task(); } catch(error) { if ($('parents').open) backupError = message(error); notify(message(error)); }
-    finally { operation = false; document.querySelectorAll('.parent-actions button,#player-layout,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = false); renderBackup(); renderProtection(); renderBulk();renderDrawerControls(); }
+    finally { operation = false; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = false); renderBackup(); renderProtection(); renderBulk();renderDrawerControls(); }
   }
   function validateCatalog(data) {
     if (!data || !Array.isArray(data.songs)) throw new Error('רשימת השירים באתר אינה תקינה.');
@@ -150,31 +148,22 @@
     if (next) return playSong(next,false,true);
     if (ended) { audio.pause(); syncPlayer(); }
   }
-  function applyPlayerLayout(){document.documentElement.dataset.playerLayout=playerLayout;$('player-layout').value=playerLayout;}
-  function renderTransport(isPlaying){
-    for(const [id,key,text] of [['play',isPlaying?'pause':'play',isPlaying?'Ⅱ':'▶︎'],['previous','previous','⏮︎'],['next','next','⏭︎']]){
-      const button=$(id),state=playerLayout+':'+key;if(button.dataset.visualState===state)continue;button.dataset.visualState=state;
-      if(playerLayout==='classic'){button.textContent=text;continue;}
-      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width',id==='play'?'34':'28');svg.setAttribute('height',id==='play'?'34':'28');svg.setAttribute('fill','currentColor');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',{play:'M7 3v18l15-9Z',pause:'M6 3h4v18H6zM14 3h4v18h-4z',previous:'M4 4h3v16H4zM20 4v16L7 12Z',next:'M17 4h3v16h-3zM4 4v16l13-8Z'}[key]);svg.append(path);button.replaceChildren(svg);
-    }
-  }
-  $('player-layout').addEventListener('change',()=>{const value=$('player-layout').value==='classic'?'classic':'compact';busy(async()=>{await write('meta',[{key:'playerLayout',value}]);playerLayout=value;applyPlayerLayout();syncPlayer();});});
   function syncPlayer() {
     const track = current(); const list = listed();
     $('now-title').textContent = track?.title || 'בוחרים ומקשיבים';
     $('now-icon').textContent = track ? iconFor(track) : '🧸';
     $('now-label').textContent = track ? 'השיר שבחרנו' : 'איזה שיר נשמע היום?';
     const isPlaying = !!track && !audio.paused && !audio.ended;
-    renderTransport(isPlaying); $('play').setAttribute('aria-label',isPlaying ? 'השהיה' : 'ניגון'); $('play').disabled = !track && !list.length;
+    $('play').textContent=isPlaying?'Ⅱ':'▶︎'; $('play').setAttribute('aria-label',isPlaying ? 'השהיה' : 'ניגון'); $('play').disabled = !track && !list.length;
     $('play-state').textContent = !track ? 'קצת מוזיקה, המון שמחה' : audio.error ? 'לא ניתן לנגן את הקובץ' : audio.ended ? 'איזה כיף לשיר ביחד' : isPlaying ? 'שרים ביחד 🎶' : 'מוכנים להמשיך?';
     const duration = Number.isFinite(audio.duration) ? audio.duration : track?.duration || 0;
     $('elapsed').textContent = time(audio.currentTime); $('duration').textContent = time(duration);
     $('seek').disabled = !track || !duration; $('seek').max = String(Math.max(1,duration));
     if (!scrubbing) $('seek').value = String(Math.min(audio.currentTime || 0,Math.max(1,duration)));
     const queue = playableQueue(); $('previous').disabled = !PL.adjacent(queue,currentId,-1,repeat); $('next').disabled = !PL.adjacent(queue,currentId,1,repeat);
-    $('shuffle').textContent=playerLayout==='compact'?'⤨':'⤨ ערבוב';$('shuffle').setAttribute('aria-label',shuffle?'ערבוב מופעל':'ערבוב כבוי');$('shuffle').title=shuffle?'ערבוב מופעל':'ערבוב כבוי';$('shuffle').setAttribute('aria-pressed',String(shuffle));
+    $('shuffle').textContent='⤨ ערבוב';$('shuffle').setAttribute('aria-label',shuffle?'ערבוב מופעל':'ערבוב כבוי');$('shuffle').title=shuffle?'ערבוב מופעל':'ערבוב כבוי';$('shuffle').setAttribute('aria-pressed',String(shuffle));
     const repeatLabel = repeat==='one' ? 'חזרה על שיר אחד' : repeat==='all' ? 'חזרה על הפלייליסט' : 'חזרה כבויה';
-    $('repeat').textContent = playerLayout==='compact'?(repeat==='one'?'↻¹':'↻'):(repeat==='one' ? '↻ 1 ' : '↻ ')+repeatLabel;$('repeat').title=repeatLabel; $('repeat').setAttribute('aria-label',repeatLabel); $('repeat').classList.toggle('repeat-active',repeat!=='off');
+    $('repeat').textContent = (repeat==='one' ? '↻ 1 ' : '↻ ')+repeatLabel;$('repeat').title=repeatLabel; $('repeat').setAttribute('aria-label',repeatLabel); $('repeat').classList.toggle('repeat-active',repeat!=='off');
     $('queue-label').textContent = track ? 'מנגנים מתוך: '+playlistName(queuePlaylistId) : 'בחירת שיר תתחיל את הרשימה';
     document.querySelectorAll('.song-card').forEach(card => {
       const active = card.dataset.id === currentId; card.classList.toggle('active',active);
@@ -191,27 +180,28 @@
     else $('list-title').textContent=title;
  $('song-sort').value = activePlaylist()?.sortMode || librarySort;
     $('import').title=activePlaylist()?'הוספת שירים לפלייליסט ״'+playlistName(activePlaylistId)+'״':'הוספת שירים לספרייה';
-    $('manual-order-help').hidden = !editing;
+    $('manual-order-help').hidden = !editing||bulkSelecting;
     $('empty-title').textContent = activePlaylistId==='all' ? 'כאן יגורו השירים שלכם' : 'הפלייליסט הזה עדיין ריק';
     $('empty-hint').textContent = activePlaylistId==='all' ? 'אפשר להוסיף קובצי שירים בעזרת הפלוס ליד החיפוש, או לשחזר גיבוי בהגדרות.' : 'בחרו שירים מהספרייה או הוסיפו קובצי שירים ישירות לפלייליסט.';
     $('empty-choose').hidden = activePlaylistId==='all';
     renderDrawer();
     for (const track of list) {
+      const rowEditing=editing&&!bulkSelecting;
       const card = document.createElement('div'); card.className = 'song-card'; card.dataset.id = track.id; card.style.backgroundColor = colors[hash(track.id)%colors.length];
-      const button = document.createElement(editing?'div':'button'); button.className = 'song-main'; if(!editing)button.type = 'button';
-      const animal = document.createElement(editing?'button':'span'); animal.className = 'song-animal'; animal.textContent = iconFor(track);if(editing){animal.type='button';animal.setAttribute('aria-label','עריכת האייקון של '+track.title);animal.addEventListener('click',()=>editSong(track.id));}else animal.setAttribute('aria-hidden','true');
+      const button = document.createElement(rowEditing?'div':'button'); button.className = 'song-main'; if(!rowEditing)button.type = 'button';
+      const animal = document.createElement(rowEditing?'button':'span'); animal.className = 'song-animal'; animal.textContent = iconFor(track);if(rowEditing){animal.type='button';animal.setAttribute('aria-label','עריכת האייקון של '+track.title);animal.addEventListener('click',()=>editSong(track.id));}else animal.setAttribute('aria-hidden','true');
       const copy = document.createElement('span'); copy.className = 'song-copy';
-      const name = document.createElement(editing?'button':'span'); name.className = 'song-name'; name.textContent = track.title;if(editing){name.type='button';name.setAttribute('aria-label','עריכת שם השיר '+track.title);name.addEventListener('click',()=>editSong(track.id));}
+      const name = document.createElement(rowEditing?'button':'span'); name.className = 'song-name'; name.textContent = track.title;if(rowEditing){name.type='button';name.setAttribute('aria-label','עריכת שם השיר '+track.title);name.addEventListener('click',()=>editSong(track.id));}
       const caption = document.createElement('span'); caption.className = 'song-caption'; caption.textContent = track.blob ? '✓ שמור במכשיר' : '☁ להאזנה דרך האינטרנט';
-      copy.append(name,caption); const play = document.createElement(editing?'button':'span'); play.className = 'song-play'; play.textContent = '▶︎';if(editing){play.type='button';play.addEventListener('click',()=>playSong(track.id));}else play.setAttribute('aria-hidden','true');
+      copy.append(name,caption); const play = document.createElement(rowEditing?'button':'span'); play.className = 'song-play'; play.textContent = '▶︎';if(rowEditing){play.type='button';play.addEventListener('click',()=>playSong(track.id));}else play.setAttribute('aria-hidden','true');
       if(bulkSelecting){const box=document.createElement('input');box.type='checkbox';box.className='bulk-checkbox';box.checked=selectedSongIds.has(track.id);box.setAttribute('aria-label','בחירת '+track.title);box.addEventListener('change',()=>{box.checked?selectedSongIds.add(track.id):selectedSongIds.delete(track.id);renderBulk();});card.append(box);}
-      button.append(animal,copy,play); if(!editing)button.addEventListener('click',() => {if(bulkSelecting){selectedSongIds.has(track.id)?selectedSongIds.delete(track.id):selectedSongIds.add(track.id);const box=card.querySelector('.bulk-checkbox');if(box)box.checked=selectedSongIds.has(track.id);renderBulk();}else playSong(track.id);}); card.append(button);
+      button.append(animal,copy,play); if(!rowEditing)button.addEventListener('click',() => {if(bulkSelecting){selectedSongIds.has(track.id)?selectedSongIds.delete(track.id):selectedSongIds.add(track.id);const box=card.querySelector('.bulk-checkbox');if(box)box.checked=selectedSongIds.has(track.id);renderBulk();}else playSong(track.id);}); card.append(button);
       if(editing&&!bulkSelecting){
         const remove=document.createElement('button');remove.className='song-delete';remove.setAttribute('aria-label',(activePlaylist()?'הסרה מהפלייליסט של ':'מחיקה מהספרייה של ')+track.title);remove.title=activePlaylist()?'הסרה מהפלייליסט בלבד':'מחיקה מהספרייה (אפשר לשחזר)';
         const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','22');svg.setAttribute('height','22');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.8');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',activePlaylist()?'M5 12h14':'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7');svg.append(path);remove.append(svg);
         remove.addEventListener('click',()=>{if(operation)return;requireAdult(()=>activePlaylist()?removeFromPlaylist(track.id):deleteTracks([track.id]));});card.append(remove);
       }
-      if (editing) {
+      if (rowEditing) {
         const order = listed(); const pos=order.findIndex(t=>t.id===track.id); const controls=document.createElement('div'); controls.className='order-controls';
         for (const [delta,label] of [[-1,'הזזה למעלה'],[1,'הזזה למטה']]) { const b=document.createElement('button'); b.textContent=delta<0?'↑':'↓'; b.setAttribute('aria-label',label+' '+track.title); b.disabled=delta<0?pos===0:pos===order.length-1; b.addEventListener('click',()=>reorderTrack(track.id,delta)); controls.append(b); }
         card.append(controls);
@@ -703,8 +693,8 @@
   async function refreshStorageEstimate(){renderStorage();try{const estimate=await navigator.storage?.estimate?.();$('storage-estimate').textContent=estimate?.quota?'אחסון הדומיין בדפדפן: כ־'+megabytes(estimate.usage||0)+' מתוך מכסה של '+megabytes(estimate.quota)+'. זו הערכה, לא המקום הפנוי בטלפון.':'הדפדפן אינו מספק הערכת מכסת אחסון.';}catch{$('storage-estimate').textContent='הערכת האחסון אינה זמינה.';}}
   async function checkUpdate(silent=false){if(checkingUpdate)return;checkingUpdate=true;$('check-update').disabled=true;if(!silent)$('update-status').textContent='בודקים עדכון…';const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const response=await fetch('./version.json',{cache:'no-store',signal:controller.signal});if(!response.ok)throw new Error();const remote=await response.json();if(typeof remote.version!=='string'||remote.version.length>80)throw new Error();const available=remote.version!==APP_VERSION;$('update-status').textContent=available?'זמין עדכון לגרסה '+remote.version+'. טעינתו תרענן את הנגן.':'זו הגרסה העדכנית.';$('apply-update').hidden=!available;const registration=await navigator.serviceWorker?.getRegistration?.();await registration?.update();}catch{$('update-status').textContent='לא ניתן לבדוק עדכון כרגע. הגרסה המקומית ממשיכה לעבוד.';}finally{clearTimeout(timer);checkingUpdate=false;$('check-update').disabled=false;}}
   $('check-update').addEventListener('click',()=>checkUpdate());$('apply-update').addEventListener('click',()=>location.reload());
-  function renderBulk(){const visibleIds=new Set(visible().map(t=>t.id));selectedSongIds=new Set([...selectedSongIds].filter(id=>visibleIds.has(id)));$('bulk-bar').hidden=!bulkSelecting;$('bulk-delete').textContent=activePlaylist()?'הסרה מהפלייליסט':'מחיקה מהספרייה';$('bulk-count').textContent=selectedSongIds.size+' נבחרו';$('select-songs').textContent=bulkSelecting?'סיום בחירה':'בחירת כמה שירים';$('select-songs').setAttribute('aria-pressed',String(bulkSelecting));$('bulk-add').disabled=operation||!selectedSongIds.size;$('bulk-delete').disabled=operation||!selectedSongIds.size;}
-  $('select-songs').addEventListener('click',()=>{if(operation)return;requireAdult(()=>{bulkSelecting=!bulkSelecting;editing=false;selectedSongIds.clear();render();});});
+  function renderBulk(){$('select-songs').hidden=!editing;const visibleIds=new Set(visible().map(t=>t.id));selectedSongIds=new Set([...selectedSongIds].filter(id=>visibleIds.has(id)));$('bulk-bar').hidden=!bulkSelecting;$('bulk-delete').textContent=activePlaylist()?'הסרה מהפלייליסט':'מחיקה מהספרייה';$('bulk-count').textContent=selectedSongIds.size+' נבחרו';$('select-songs').textContent=bulkSelecting?'סיום בחירה':'בחירת כמה שירים';$('select-songs').setAttribute('aria-pressed',String(bulkSelecting));$('bulk-add').disabled=operation||!selectedSongIds.size;$('bulk-delete').disabled=operation||!selectedSongIds.size;}
+  $('select-songs').addEventListener('click',()=>{if(operation||!editing)return;requireAdult(()=>{bulkSelecting=!bulkSelecting;selectedSongIds.clear();render();});});
   $('bulk-all').addEventListener('click',()=>{listed().filter(matchesSearch).forEach(t=>selectedSongIds.add(t.id));render();});
   $('bulk-clear').addEventListener('click',()=>{selectedSongIds.clear();render();});
   $('bulk-add').addEventListener('click',()=>openAssignment([...selectedSongIds]));
@@ -719,5 +709,5 @@
     try { db = await openDB(); await reload(); setupOffline(); checkUpdate(true); await refreshCatalog(true); }
     catch(error) { $('fatal').hidden = false; $('fatal').textContent = 'לא ניתן לפתוח את האחסון המקומי. נסי לפתוח בספארי מחוץ לגלישה פרטית. '+message(error); }
   }
-  applyPlayerLayout();syncPlayer();start();
+  start();
 })();

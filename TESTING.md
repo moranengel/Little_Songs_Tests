@@ -116,3 +116,9 @@ The new compact player is the testing default. Settings → Player Design offers
 The compact layout has three rows: current song plus icon-only shuffle/repeat, large previous/play/next controls, then seek/time. Existing accessible names and repeat states remain. Full text mode labels return in classic view. Controls use native buttons and SVG transport icons.
 
 Browser QA at 390 × 844 measured compact height 170 px versus classic 220 px; compact play 68 px versus 50 px, and next/previous 54 px. Switching to classic kept audio playing and survived reload; switching back to compact also persisted. Play/pause, next/previous, shuffle and repeat were verified. A 320 × 568 preview had no horizontal player overflow, and repeat-one fits its 44 px control. No changes to production.
+
+## Classic player restored — 2026.11.14.10-test
+
+The compact layout experiment and its Settings selector have been removed. The original classic player is rendered regardless of a previous local layout preference; existing metadata is left untouched. Multi-selection is hidden until editing is active. Selecting songs is a submode of editing: finishing selection returns to editing, while the pencil exits both modes and clears selections. Row editing controls remain separate from the bulk selection targets.
+
+Browser QA at 390 × 844 verified the classic player dimensions (220 px height / 50 px play), no layout selector, bulk control hidden in listening view, adult gate, selection and selection exit, pencil exiting both modes, and ordinary playback. All seven Node suites passed; generated asset consistency was rechecked after final formatting.

@@ -125,4 +125,4 @@ The main list now includes song action menus and multi-selection for playlist as
 
 The sidebar supports integrated edit controls, name search, optional pinned favorites and manual ordering inside pinned/unpinned groups. Use the sort icon again to save; closing cancels an unsaved order. Pin flags and order are included in backups. Inside a custom playlist, single or multiple removal changes only membership and has a five-second undo; All Songs retains recoverable library deletion.
 
-A reversible compact player trial is available in testing: Settings → Player Design → Compact / Classic. The classic player is retained and can be restored instantly without changing the library. The visual preference is saved on the device.
+The original classic player is restored. Multi-selection is available only during song editing. Finishing multi-selection returns to editing; the pencil exits both modes. The compact player experiment is retired, without deleting its old device preference or changing library data.
