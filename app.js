@@ -312,7 +312,7 @@
         $('backup-progress').textContent = 'מכינים גיבוי: '+done+' מתוך '+total+' שירים';
       },{playlists:backupPlaylists,librarySort});
       if (token !== preparationToken || revision !== backupState.revision) return;
-      preparedBackup = {revision,file:new File([blob],'Little-Songs-Backup.little-songs',{type:'application/octet-stream'})};
+      preparedBackup = {revision,file:new File([blob],'Backup.little-songs',{type:'application/octet-stream'})};
     } catch(error) { if (token === preparationToken && error.name !== 'AbortError') backupError = 'לא ניתן להכין גיבוי: '+message(error); }
     finally { if (token === preparationToken) { preparing = false; renderBackup(); } }
   }
@@ -453,6 +453,10 @@
   }
   $('playlists-toggle').addEventListener('click',openDrawer);
   $('drawer-close').addEventListener('click',()=>$('playlists-drawer').close());
+  let drawerPointerOutside = false;
+  const outsideDrawer = event => { const r=$('playlists-drawer').getBoundingClientRect();return event.clientX<r.left || event.clientX>r.right || event.clientY<r.top || event.clientY>r.bottom; };
+  $('playlists-drawer').addEventListener('pointerdown',event=>{ drawerPointerOutside = event.target===$('playlists-drawer') && outsideDrawer(event); });
+  $('playlists-drawer').addEventListener('click',event=>{ if(drawerPointerOutside && event.target===$('playlists-drawer') && outsideDrawer(event)) $('playlists-drawer').close(); drawerPointerOutside=false; });
   $('playlists-drawer').addEventListener('close',()=>$('playlists-toggle').setAttribute('aria-expanded','false'));
   $('manage-playlists').addEventListener('click',openDrawer);
   $('create-playlist').addEventListener('click',()=>editPlaylist());
