@@ -43,3 +43,7 @@ The drawer header keeps the create (+) and close controls visible while only its
 Clicking a custom playlist title opens its editor. All Songs remains plain text. In the editor, Song Ordering shows selected songs only, with pointer/touch handles and accessible up/down buttons. Membership selection and ordering share an unsaved draft; closing discards it. Save commits order for that playlist only and switches to manual sorting after a move. Existing archive metadata preserves the order without a format change.
 
 Browser checks at 390 × 844: title opening, arrow moves, pointer drag, cancellation, isolation between playlists, switching from name to manual sort, persistence after reload, and no outer editor overflow.
+
+## Rainbow note icon
+
+The menu, favicon and installation icons share a single musical note filled with rainbow colors. Versioned icon filenames avoid reusing the previous arch icon from cache. Existing home-screen shortcuts may need to be recreated for iOS to refresh their icon.

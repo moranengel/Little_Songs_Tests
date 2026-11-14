@@ -21,7 +21,7 @@ for name,path in replacements.items():
     html = re.sub(r'\./(?:assets/'+stem+r'-[a-f0-9]+|'+stem+r')'+ext, './'+path, html)
 (root / 'index.html').write_text(html)
 sw = (root / 'sw.js').read_text()
-shell = ['./', './index.html', *['./'+p for p in replacements.values()], './manifest.webmanifest', './songs.json', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png']
+shell = ['./', './index.html', *['./'+p for p in replacements.values()], './manifest.webmanifest', './songs.json', './icons/rainbow-note-192.png', './icons/rainbow-note-512.png', './icons/rainbow-note-apple.png']
 sw = re.sub(r'const SHELL = .*?;', 'const SHELL = '+json.dumps(shell,separators=(',',':'))+';', sw, count=1)
 (root / 'sw.js').write_text(sw)
 # Keep older content-addressed files for already-open pages until a later cleanup.
