@@ -55,3 +55,5 @@ dialog.parents{margin:auto;padding:20px;background:#fff9f0;max-height:85dvh}
 .trash-row{flex-wrap:wrap}.trash-row span{flex-basis:100%}.trash-row .danger{margin-inline-start:auto}
 
 .section-heading{gap:8px}.section-heading h2{min-width:0;overflow-wrap:anywhere}.list-actions{flex:none;gap:4px}#import{color:var(--purple)}
+
+.library-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 8px;flex:1;min-width:0}.library-heading h2{max-width:100%}.library-heading .count{white-space:nowrap}.list-actions #edit-toggle.editing-active{background:#eee5fa;box-shadow:inset 0 0 0 1px var(--purple)}

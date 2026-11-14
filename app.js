@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.2-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.3-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let checkingUpdate=false;
   const PL = LittleSongsPlaylists;
@@ -77,9 +77,9 @@
   }
   async function busy(task) {
     if (operation) return;
-    operation = true; document.querySelectorAll('.parent-actions button,#import,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = true);
+    operation = true; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = true);
     try { await task(); } catch(error) { if ($('parents').open) backupError = message(error); notify(message(error)); }
-    finally { operation = false; document.querySelectorAll('.parent-actions button,#import,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = false); renderBackup(); renderProtection(); }
+    finally { operation = false; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = false); renderBackup(); renderProtection(); }
   }
   function validateCatalog(data) {
     if (!data || !Array.isArray(data.songs)) throw new Error('רשימת השירים באתר אינה תקינה.');
@@ -203,7 +203,7 @@
       $('song-list').append(card);
     }
     $('restore').hidden = !trash.length;
-    $('edit-toggle').textContent = editing ? 'סיום עריכה' : 'עריכת שירים'; $('edit-toggle').setAttribute('aria-pressed',String(editing));
+    $('edit-toggle').setAttribute('aria-label',editing?'סיום עריכה':'עריכת שירים');$('edit-toggle').title=editing?'סיום עריכה':'עריכת שירים';$('edit-toggle').classList.toggle('editing-active',editing); $('edit-toggle').setAttribute('aria-pressed',String(editing));
     const saved = library.filter(t => t.blob).length;
     $('offline-status').textContent = (shellReady ? '✓ הממשק מוכן לאופליין' : 'הממשק עדיין לא אושר לאופליין')+' · '+saved+' מתוך '+library.length+' שירים שמורים';
     syncPlayer(); renderBackup(); renderProtection();
@@ -579,7 +579,7 @@
   });
   $('song-search').addEventListener('input',() => { render(); document.querySelector('.library-scroll').scrollTop = 0; });
   $('search-clear').addEventListener('click',() => { $('song-search').value = ''; render(); $('song-search').focus(); });
-  $('edit-toggle').addEventListener('click',() => { editing = !editing; render(); if (editing) $('parents').close(); });
+  $('edit-toggle').addEventListener('click',() => { if(operation)return; editing = !editing; render(); if (editing) $('parents').close(); });
   $('import').addEventListener('click',() => {importTargetId=activePlaylistId;$('files').click();}); $('files').addEventListener('change',() => {const files=[...$('files').files];requireAdult(()=>importFiles(files));});
   $('download-all').addEventListener('click',downloadAll);
   $('restore').addEventListener('click',openTrash);
@@ -609,7 +609,7 @@
   }
   document.addEventListener('click',event=>{
     if(!childMode||adultUnlocked)return;
-    const button=event.target.closest('#backup-shortcut,#import,#empty-import,#empty-choose,#create-playlist,.playlist-nav-edit,.playlist-title-button,#undo-delete');
+    const button=event.target.closest('#backup-shortcut,#import,#edit-toggle,#empty-import,#empty-choose,#create-playlist,.playlist-nav-edit,.playlist-title-button,#undo-delete');
     if(button){event.preventDefault();event.stopImmediatePropagation();requireAdult(()=>button.click());}
   },true);
   $('adult-form').addEventListener('submit',event=>{event.preventDefault();const value=$('adult-answer').value.trim();if(!/^\d+$/.test(value)||Number(value)!==gateAnswer){$('adult-error').textContent='התשובה אינה נכונה. נסו שוב.';return;}adultUnlocked=true;const action=gateAction;gateAction=null;$('adult-gate').close();renderProtection();action?.();});

@@ -69,3 +69,7 @@ Validation: all five Node suites plus syntax and asset consistency. Browser QA a
 The song import button now appears as a plus next to search in the main library toolbar, including populated playlists. It is no longer inside Settings. Import targets the selected playlist and the shared library, or only the library when All Songs is selected. The child-mode gate protects this entry point and the existing empty-state import action. The manual website-song-refresh button has been removed; application update checks remain separate. No playback-position persistence or other proposed additions were included.
 
 Verified in the 390 × 844 browser preview: absence of both old Settings controls, toolbar chooser opening, a new local song increasing a selected playlist from 1 to 2 and the library from 27 to 28, and a locked child-mode plus opening the adult challenge. All five test suites passed.
+
+## Main-page song editing — 2026.11.14.3-test
+
+Song editing is now a pencil toggle beside import and search in the main toolbar, removed from Settings. Active editing has pressed state, highlighting, and an explicit Finish Editing button. The song count is grouped with the playlist heading on the right; it wraps within that heading group for longer titles. Child mode gates the pencil before enabling edits. Verified at 390 × 844: Settings removal, pencil enabling row edit buttons, opening a song editor, exiting edits, and child-mode protection. All five suites passed.
