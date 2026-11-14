@@ -7,7 +7,7 @@
 <meta name="description" content="נגן שירי הילדים שלנו, עם שמירה להאזנה ללא אינטרנט">
 <link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icons/rainbow-note-apple.png">
 <link rel="icon" type="image/png" href="./icons/rainbow-note-192.png"><link rel="stylesheet" href="./assets/style-ae5f70322d62.css">
-<title>זמן לשיר! — בדיקות</title><script defer src="./assets/safeguards-82cd45f15ff0.js"></script><script defer src="./assets/playlists-09419b253491.js"></script><script defer src="./assets/backup-0d4a938a4d82.js"></script><script defer src="./assets/app-c3934403f3e0.js"></script>
+<title>זמן לשיר! — בדיקות</title><script defer src="./assets/safeguards-f0f736568fcf.js"></script><script defer src="./assets/playlists-09419b253491.js"></script><script defer src="./assets/backup-368973a58aec.js"></script><script defer src="./assets/app-3e45232d740c.js"></script>
 </head>
 <body>
 <main class="app">
@@ -34,7 +34,7 @@
 <p id="offline-status" class="offline-status" role="status">בודקים את השמירה לאופליין…</p><p id="download-progress" class="hint" role="status"></p>
 <section class="storage-panel" aria-labelledby="storage-title"><h3 id="storage-title">אחסון וגיבוי</h3><p id="storage-summary" class="hint" role="status"></p><p id="storage-estimate" class="hint"></p><button id="open-trash" class="outline action">שחזור פריטים שנמחקו</button><p class="hint">פריטים שנמחקו נשמרים לשחזור במכשיר ותופסים מקום. הגיבוי כולל את הספרייה הפעילה בלבד.</p></section>
 <section class="version-panel" aria-labelledby="version-title"><h3 id="version-title">גרסה ועדכונים</h3><p id="app-version" class="hint"></p><p id="update-status" class="hint" role="status"></p><div class="backup-actions"><button id="check-update" class="outline action">בדיקת עדכון לאפליקציה</button><button id="apply-update" class="primary action" hidden>טעינת העדכון</button></div></section>
-<section class="version-panel"><h3>בדיקת תקלה בניגון</h3><p class="hint">אם השם מתחלף אבל נשמע אותו שיר, הפעילי את הבדיקה בזמן שהתקלה קיימת. הבדיקה קוראת את הקבצים במכשיר בלבד ואינה משנה אותם או שולחת אותם לשרת.</p><button id="check-audio" class="outline action">בדיקת תקלה בניגון</button></section>
+<section class="version-panel"><h3>בדיקת תקלה בניגון</h3><p class="hint">אם השם מתחלף אבל נשמע אותו שיר, הפעילי את הבדיקה בזמן שהתקלה קיימת. הבדיקה קוראת את הקבצים במכשיר בלבד ואינה משנה אותם או שולחת אותם לשרת.</p><button id="check-audio" class="outline action">בדיקת תקלה בניגון</button><button id="repair-audio" class="outline action">תיקון השמע מגיבוי תקין</button><p class="hint">התיקון מחליף רק את השמע בשירים תואמים; השמות, האייקונים והפלייליסטים הנוכחיים נשמרים.</p></section>
 <section class="backup-panel" aria-labelledby="backup-title"><h3 id="backup-title">גיבוי ושחזור</h3>
 <p class="hint">אחרי שינויים נכין גיבוי כשהנגן פתוח. לשמירה מחוץ לנגן צריך ללחוץ על שמירה ולבחור ״שמירה בקבצים״.</p>
 <p id="backup-status" class="offline-status" role="status"></p>
@@ -48,6 +48,7 @@
 <div id="undo-bar" class="undo-bar" role="status" hidden><span id="undo-label"></span><button id="undo-delete" class="outline">ביטול מחיקה</button></div><div id="fatal" class="fatal" hidden role="alert"></div>
 </main>
 <audio id="audio" preload="metadata" playsinline></audio>
+<input id="repair-audio-file" type="file" accept=".little-songs,application/octet-stream" hidden>
 <input id="backup-file" type="file" accept=".little-songs,application/octet-stream" hidden>
 <input id="files" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.aif,.aiff,.flac,.caf,.ogg,.mp4" multiple hidden>
 <dialog id="edit-dialog" aria-labelledby="edit-title" class="framed-dialog"><form id="edit-form" novalidate><div class="dialog-top"><h2 id="edit-title">עריכת שיר</h2><button id="edit-close" type="button" class="close" aria-label="סגירה">×</button></div><div class="dialog-body"><label for="song-name">שם השיר</label><input id="song-name" type="text" maxlength="180" required autocomplete="off"><label>האייקון של השיר</label><div id="icon-options" class="icon-options" role="group" aria-label="בחירת אייקון"></div><label for="custom-icon">או אימוג׳י אחר מהמקלדת</label><input id="custom-icon" type="text" maxlength="32" autocomplete="off" placeholder="למשל 🦄"><fieldset class="song-playlist-field"><legend>שיוך לפלייליסטים</legend><div id="song-playlist-options"></div></fieldset><div id="song-membership-actions"></div><p id="edit-status" class="hint" role="alert"></p><div class="dialog-actions"><button type="submit" class="primary action">שמירת השינויים</button><button id="delete-song" type="button" class="danger">מחיקת השיר (אפשר לשחזר)</button></div><p class="hint">מחיקה כאן לא משנה את הקבצים שב־GitHub.</p></div></form></dialog>

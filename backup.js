@@ -8,7 +8,8 @@
   const encoder = new TextEncoder();
   const invalid = () => new Error('קובץ הגיבוי אינו תקין או אינו נתמך. הספרייה לא שונתה.');
   async function digest(blob) {
-    return [...new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()))].map(n => n.toString(16).padStart(2,'0')).join('');
+    const bytes=await blob.arrayBuffer();if(bytes.byteLength!==blob.size)throw new Error('קריאת קובץ שמע אינה תקינה. הגיבוי לא נוצר. השתמשי בגיבוי המקורי או בקובצי המקור.');
+    return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(n => n.toString(16).padStart(2,'0')).join('');
   }
   function validateRecord(t) {
     if (!t || typeof t.id !== 'string' || !t.id || t.id.length > 240 || typeof t.title !== 'string' || !t.title.trim() || t.title.length > 180 || typeof t.icon !== 'string' || [...t.icon].length > 24 || !['local','catalog'].includes(t.source) || !Number.isSafeInteger(t.size) || t.size <= 0 || typeof t.type !== 'string' || t.type.length > 160 || !/^[a-f0-9]{64}$/.test(t.sha256)) throw invalid();
@@ -26,6 +27,7 @@
       if(t.blob.size>MAX_TRACK_BYTES)throw new Error('שיר גדול מדי לגיבוי. המגבלה היא 100 MB לשיר.');
       const r = {id:t.id,title:t.title,icon:t.icon || '🎵',source:t.source === 'catalog' ? 'catalog' : 'local',file:t.file || '',order:Number.isFinite(t.order) ? t.order : i,duration:Number.isFinite(t.duration) && t.duration > 0 ? t.duration : 0,size:t.blob.size,type:t.blob.type || 'application/octet-stream',sha256:await digest(t.blob)};
       validateRecord(r); if (seen.has(r.id)) throw invalid(); seen.add(r.id);
+      if(t.fingerprint&&t.fingerprint!==r.sha256)throw new Error('קובץ שמע אינו תואם לחתימה המקורית. הגיבוי לא נוצר.');
       records.push(r); payload.push(t.blob);
     }
     progress(tracks.length,tracks.length);
@@ -53,7 +55,7 @@
       if (seen.has(t.id) || offset+t.size > file.size) throw invalid(); seen.add(t.id);
       const blob = file.slice(offset,offset+t.size,t.type); offset += t.size;
       if (await digest(blob) !== t.sha256) throw new Error('קובץ הגיבוי פגום או לא הורד במלואו. הספרייה לא שונתה.');
-      result.push({id:t.id,title:t.title,icon:t.icon,source:t.source,file:t.file,order:t.order,duration:t.duration,blob,hidden:false,renamed:true});
+      result.push({id:t.id,title:t.title,icon:t.icon,source:t.source,file:t.file,order:t.order,duration:t.duration,blob,fingerprint:t.sha256,hidden:false,renamed:true});
     }
     if (offset !== file.size) throw invalid();
     progress(result.length,result.length); return {tracks:result,playlists,librarySort:manifest.librarySort || 'manual',hasPlaylists:manifest.version===2};

@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.16-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.17-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
@@ -43,10 +43,12 @@
   function read(store, key) {
     return new Promise((resolve,reject) => {
       const tx = db.transaction(store,'readonly'); const request = key === undefined ? tx.objectStore(store).getAll() : tx.objectStore(store).get(key);
-      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      request.onsuccess = () => {try{const result=request.result;resolve(store==='tracks'?(Array.isArray(result)?result.map(SAFE.unpackAudio):SAFE.unpackAudio(result)):result);}catch(error){reject(error);}}; request.onerror = () => reject(request.error);
     });
   }
-  function write(store, entries, deletions = [], changed = false, extraMeta = []) {
+  async function write(store, entries, deletions = [], changed = false, extraMeta = []) {
+    // Materialize all audio before opening the transaction; persist bytes, never Blob handles.
+    const storedEntries=[];for(const entry of entries)storedEntries.push(store==='tracks'?await SAFE.packAudio(entry):entry);
     return new Promise((resolve,reject) => {
       const tx = db.transaction(changed || extraMeta.length ? [...new Set([store,'meta'])] : store,'readwrite'); const table = tx.objectStore(store);
       if (changed) {
@@ -56,7 +58,7 @@
           meta.put({key:'backupState',value:{...old,revision:old.revision+1}});
         };
       }
-      entries.forEach(entry => table.put(entry)); deletions.forEach(key => table.delete(key));
+      storedEntries.forEach(entry => table.put(entry)); deletions.forEach(key => table.delete(key));
       if (extraMeta.length) extraMeta.forEach(entry=>tx.objectStore('meta').put(entry));
       tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('השמירה לא הושלמה.'));
     });
@@ -439,7 +441,7 @@
       offeredBackup = null; $('backup-saved-dialog').close(); await reload(); notify('אישור שמירת הגיבוי נרשם');
     });
   }
-  async function restoreBackup(file) {
+  async function restoreBackup(file, audioOnly=false) {
     if (!file) return;
     await busy(async () => {
       backupError = '';
@@ -447,6 +449,14 @@
       SAFE.checkSize(file.size,SAFE.MAX_BACKUP_BYTES,'קובץ הגיבוי');
       const archive = await LittleSongsBackup.decodeLibrary(file,(done,total) => { $('backup-progress').textContent = 'בדיקת הגיבוי: '+done+' מתוך '+total+' שירים'; });
       const restored=archive.tracks;
+      if(audioOnly){
+        const repairs=SAFE.repairAudio(tracks,restored);
+        if(!repairs.length)throw new Error('אין בגיבוי שירים עם מזהים תואמים לשירים הפעילים במכשיר. הספרייה לא שונתה.');
+        const missing=visible().length-repairs.length;
+        if(!confirm('לתקן את קובצי השמע של '+repairs.length+' שירים מהגיבוי? השמות, האייקונים, הפלייליסטים והסדר הנוכחיים יישמרו.'+(missing?' '+missing+' שירים אינם כלולים בתיקון.':'')))return;
+        await write('tracks',repairs,[],true);resetPlayer();preparedBackup=null;offeredBackup=null;await reload();
+        $('audio-diagnostics').close();$('parents').close();notify('תוקנו קובצי השמע של '+repairs.length+' שירים. השמות והפלייליסטים נשמרו.');return;
+      }
       if (!restored.length && !archive.playlists.length) throw new Error('קובץ הגיבוי אינו מכיל שירים או פלייליסטים.');
       if (!confirm('לשחזר '+restored.length+' שירים ו־'+archive.playlists.length+' פלייליסטים מהגיבוי? שירים עם אותו מזהה יעודכנו, כולל השם והאייקון. שירים אחרים שכבר קיימים בנגן יישארו.')) return;
       await requestPersistence();
@@ -489,7 +499,7 @@
           if(mismatch||memoryHash!==storedHash)issues++;
           if(track.id===selectedId)selectedHash=storedHash;
           const names=groups.get(storedHash)||[];names.push(track.title);groups.set(storedHash,names);
-          lines.push(track.title+'\nגודל: '+record.blob.size+' בתים · חתימה: '+storedHash.slice(0,16)+'\nסוג: '+(record.blob.type||'לא צוין')+'\n'+(expected?(mismatch?'⚠ הקובץ שונה מהחתימה שנשמרה בהעלאה':'✓ תואם לחתימה מההעלאה'):'אין חתימת מקור להשוואה')+'\n'+(memoryHash===storedHash?'✓ הזיכרון תואם לאחסון':'⚠ הזיכרון שונה מהאחסון')+'\n');
+          lines.push(track.title+'\nגודל: '+record.blob.size+' בתים · חתימה: '+storedHash.slice(0,16)+'\nאחסון: '+(record.audioStorage==='bytes-v1'?'בתים עצמאיים':'הפניית קובץ ישנה')+'\nסוג: '+(record.blob.type||'לא צוין')+'\n'+(expected?(mismatch?'⚠ הקובץ שונה מהחתימה שנשמרה בהעלאה':'✓ תואם לחתימה מההעלאה'):'אין חתימת מקור להשוואה')+'\n'+(memoryHash===storedHash?'✓ הזיכרון תואם לאחסון':'⚠ הזיכרון שונה מהאחסון')+'\n');
         }catch(error){issues++;lines.push(track.title+': כשל בקריאת שמע — '+message(error)+'\n');}
       }
       lines.push('בדיקת המקור בנגן:');
@@ -504,6 +514,8 @@
     finally{checkingAudio=false;$('audio-diagnostics-again').disabled=false;}
   }
   $('check-audio').addEventListener('click',()=>requireAdult(()=>{$('audio-diagnostics').showModal();checkAudioDiagnostics();}));
+  $('repair-audio').addEventListener('click',()=>{if(!operation)requireAdult(()=>{$('repair-audio-file').value='';$('repair-audio-file').click();});});
+  $('repair-audio-file').addEventListener('change',()=>{const file=$('repair-audio-file').files[0];$('repair-audio-file').value='';requireAdult(()=>restoreBackup(file,true));});
   $('audio-diagnostics-again').addEventListener('click',checkAudioDiagnostics);
   $('audio-diagnostics-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('audio-diagnostics-status').textContent+'\n'+$('audio-diagnostics-report').textContent);$('audio-diagnostics-status').textContent='הדוח הועתק. אפשר להדביק אותו בצ׳אט.';}catch{$('audio-diagnostics-status').textContent='ההעתקה לא התאפשרה. אפשר לצלם את הדוח.';}});
   $('audio-diagnostics-close').addEventListener('click',()=>$('audio-diagnostics').close());
@@ -673,7 +685,7 @@
     backupError = 'ההכנה בוטלה. אפשר ללחוץ שוב על הכנת גיבוי.'; renderBackup();
   });
   $('backup-confirm').addEventListener('click',confirmBackup);
-  $('backup-import').addEventListener('click',() => { if (!operation) $('backup-file').click(); });
+  $('backup-import').addEventListener('click',() => { if (!operation) {$('backup-file').click();} });
   $('backup-file').addEventListener('change',() => {const file=$('backup-file').files[0];requireAdult(()=>restoreBackup(file));});
   $('backup-shortcut').addEventListener('click',saveBackup);
   $('backup-saved-yes').addEventListener('click',confirmBackup);
