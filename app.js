@@ -270,9 +270,9 @@
   function renderBackup() {
     const dirty = backupState.revision > backupState.savedRevision;
     const all = visible(); const missing = all.filter(t => !t.blob).length;
-    $('backup-shortcut').disabled = !dirty;
+    $('backup-shortcut').disabled = !dirty || operation || preparing;
     $('backup-shortcut').classList.toggle('needs-backup',dirty);
-    const shortcutLabel = dirty ? 'גיבוי — יש שינויים שלא גובו' : 'אין שינויים שממתינים לגיבוי';
+    const shortcutLabel = !dirty ? 'אין שינויים שממתינים לגיבוי' : preparing ? 'מכינים את קובץ הגיבוי' : operation ? 'ממתינים לסיום הפעולה' : 'שמירת גיבוי — יש שינויים שלא גובו';
     $('backup-shortcut').setAttribute('aria-label',shortcutLabel); $('backup-shortcut').title=shortcutLabel;
     $('backup-status').textContent = dirty ? 'יש שינויים מאז הגיבוי האחרון שאישרת.' : backupState.lastConfirmedAt ? 'אישרת שמירת גיבוי ב־'+new Date(backupState.lastConfirmedAt).toLocaleString('he-IL') : 'עדיין לא אושרה שמירת גיבוי בקובץ.';
     const ready = preparedBackup?.revision === backupState.revision;
@@ -316,19 +316,20 @@
     } catch(error) { if (token === preparationToken && error.name !== 'AbortError') backupError = 'לא ניתן להכין גיבוי: '+message(error); }
     finally { if (token === preparationToken) { preparing = false; renderBackup(); } }
   }
-  async function saveBackup() {
+  async function saveBackup(event) {
+    const direct = event?.currentTarget?.id === 'backup-shortcut';
     if (operation || preparing) return;
     if (!visible().length && !playlists.length && backupState.revision<=backupState.savedRevision) { notify('הוסיפי שירים או פלייליסט לפני יצירת גיבוי.'); return; }
     if (visible().some(t => !t.blob)) {
       backupError = '';
       if (visible().some(t => !t.blob && t.source !== 'catalog')) {
-        backupError = 'חסר קובץ שמע מקומי. הוסיפי אותו מחדש דרך ״הוספת שירים מהאייפון״ כדי לכלול אותו בגיבוי.'; renderBackup(); return;
+        backupError = 'חסר קובץ שמע מקומי. הוסיפי אותו מחדש דרך ״הוספת שירים מהאייפון״ כדי לכלול אותו בגיבוי.'; renderBackup(); if (direct) notify(backupError); return;
       }
-      if (navigator.onLine === false) { backupError = 'חלק מהשירים עדיין לא הורדו. התחברי לאינטרנט ולחצי שוב על הכנת גיבוי.'; renderBackup(); return; }
+      if (navigator.onLine === false) { backupError = 'חלק מהשירים עדיין לא הורדו. התחברי לאינטרנט ולחצי שוב על הכנת גיבוי.'; renderBackup(); if(direct)notify(backupError); return; }
       await downloadAll();
-      if (visible().some(t => !t.blob)) { backupError = 'חלק מהשירים לא הורדו. בדקי את החיבור ונסי שוב. לא נוצר גיבוי חלקי.'; renderBackup(); return; }
+      if (visible().some(t => !t.blob)) { backupError = 'חלק מהשירים לא הורדו. בדקי את החיבור ונסי שוב. לא נוצר גיבוי חלקי.'; renderBackup(); if(direct)notify(backupError); return; }
     }
-    if (!preparedBackup || preparedBackup.revision !== backupState.revision) { await prepareBackup(); return; }
+    if (!preparedBackup || preparedBackup.revision !== backupState.revision) { await prepareBackup(); if (direct) notify(backupError || 'הגיבוי מוכן. לחצי שוב על אייקון השמירה כדי לבחור היכן לשמור.'); return; }
     // This runs directly from the user's click, so Safari can open its share sheet.
     const snapshot = preparedBackup;
     try {
@@ -340,9 +341,10 @@
         setTimeout(() => URL.revokeObjectURL(url),60000);
       }
       offeredBackup = snapshot;
+      if (direct) $('backup-saved-dialog').showModal();
       $('backup-progress').textContent = 'בחרי ״שמירה בקבצים״, באותה תיקייה, ואז ״החלפה״ אם מתבקשת. רק לאחר שהקובץ נשמר לחצי ״שמרתי את הקובץ״.';
       renderBackup();
-    } catch(error) { if (error.name !== 'AbortError') { backupError = 'לא ניתן לפתוח שמירה: '+message(error); renderBackup(); } }
+    } catch(error) { if (error.name !== 'AbortError') { backupError = 'לא ניתן לפתוח שמירה: '+message(error); renderBackup(); if (direct) notify(backupError); } }
   }
   async function confirmBackup() {
     if (!offeredBackup) return;
@@ -356,7 +358,7 @@
         };
         tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
       });
-      offeredBackup = null; await reload(); notify('אישור שמירת הגיבוי נרשם');
+      offeredBackup = null; $('backup-saved-dialog').close(); await reload(); notify('אישור שמירת הגיבוי נרשם');
     });
   }
   async function restoreBackup(file) {
@@ -476,7 +478,9 @@
   $('backup-confirm').addEventListener('click',confirmBackup);
   $('backup-import').addEventListener('click',() => { if (!operation) $('backup-file').click(); });
   $('backup-file').addEventListener('change',() => restoreBackup($('backup-file').files[0]));
-  $('backup-shortcut').addEventListener('click',() => { $('parents').showModal(); $('parents-toggle').setAttribute('aria-expanded','true'); $('backup-title').scrollIntoView({block:'start'}); });
+  $('backup-shortcut').addEventListener('click',saveBackup);
+  $('backup-saved-yes').addEventListener('click',confirmBackup);
+  $('backup-saved-later').addEventListener('click',() => $('backup-saved-dialog').close());
   $('play').addEventListener('click',() => { const t = current() || listed()[0]; if (t) playSong(t.id,true,!!current()); });
   $('previous').addEventListener('click',() => moveSong(-1)); $('next').addEventListener('click',() => moveSong(1));
   $('seek').addEventListener('input',() => { scrubbing = true; $('elapsed').textContent = time(Number($('seek').value)); });
