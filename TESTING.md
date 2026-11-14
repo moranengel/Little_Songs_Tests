@@ -83,3 +83,7 @@ Song editing is now a pencil toggle beside import and search in the main toolbar
 - No playlist photos, playback-position persistence or sleep timer were added.
 
 Validation: six Node suites, including independent copies, idempotent assignments, multi-playlist recovery in differing orders and backup compatibility. Browser checks at 390 × 844 verified song editing through the actions menu, copy independence, assignment of two songs, two-song deletion and full undo, original playlist remaining unchanged, and an import report containing one new song, one renamed duplicate and one unsupported file. Both song menus and multi-selection were blocked by child mode. No CSP violations were observed.
+
+## Song actions visibility — 2026.11.14.5-test
+
+The per-song ellipsis appears only while main-page song editing is active. Finishing edits, entering multi-selection, switching to child lock or reloading returns the song list to its ordinary listening view without these controls.

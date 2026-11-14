@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.4-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.5-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), songActionId=null, assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
   const PL = LittleSongsPlaylists;
@@ -194,7 +194,7 @@
       copy.append(name,caption); const play = document.createElement('span'); play.className = 'song-play'; play.textContent = '▶︎'; play.setAttribute('aria-hidden','true');
       if(bulkSelecting){const box=document.createElement('input');box.type='checkbox';box.className='bulk-checkbox';box.checked=selectedSongIds.has(track.id);box.setAttribute('aria-label','בחירת '+track.title);box.addEventListener('change',()=>{box.checked?selectedSongIds.add(track.id):selectedSongIds.delete(track.id);renderBulk();});card.append(box);}
       button.append(animal,copy,play); button.addEventListener('click',() => {if(bulkSelecting){selectedSongIds.has(track.id)?selectedSongIds.delete(track.id):selectedSongIds.add(track.id);const box=card.querySelector('.bulk-checkbox');if(box)box.checked=selectedSongIds.has(track.id);renderBulk();}else editing?editSong(track.id):playSong(track.id);}); card.append(button);
-      if(!bulkSelecting){const actions=document.createElement('button');actions.className='song-actions';actions.textContent='⋯';actions.setAttribute('aria-label','פעולות עבור '+track.title);actions.setAttribute('aria-haspopup','dialog');actions.addEventListener('click',()=>requireAdult(()=>openSongActions(track.id)));card.append(actions);}
+      if(editing&&!bulkSelecting){const actions=document.createElement('button');actions.className='song-actions';actions.textContent='⋯';actions.setAttribute('aria-label','פעולות עבור '+track.title);actions.setAttribute('aria-haspopup','dialog');actions.addEventListener('click',()=>requireAdult(()=>openSongActions(track.id)));card.append(actions);}
       if (editing) {
         const order = listed(); const pos=order.findIndex(t=>t.id===track.id); const controls=document.createElement('div'); controls.className='order-controls';
         for (const [delta,label] of [[-1,'הזזה למעלה'],[1,'הזזה למטה']]) { const b=document.createElement('button'); b.textContent=delta<0?'↑':'↓'; b.setAttribute('aria-label',label+' '+track.title); b.disabled=delta<0?pos===0:pos===order.length-1; b.addEventListener('click',()=>reorderTrack(track.id,delta)); controls.append(b); }
