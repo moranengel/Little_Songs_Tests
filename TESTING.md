@@ -97,3 +97,14 @@ Browser QA at 390 × 844 verified hidden row controls in listening mode, adult g
 ## Separate editing and playback targets — 2026.11.14.7-test
 
 While editing, song rows use a noninteractive layout container with separate native buttons for the title, animal icon and playback. Only the title/icon buttons open the editor. The caption and row background have no edit/play action. The round play button independently toggles playback without leaving editing mode. Ordinary listening and bulk selection keep their existing row actions. There are no nested buttons. Browser QA verified title and icon editing, inert caption, play/pause while editing, ordinary playback, and bulk selection without starting audio. All six suites passed.
+
+## Sidebar, pinning and membership-only removal — 2026.11.14.8-test
+
+- Playlist choice and pencil are separate accessible sibling buttons inside a single colored, bordered card. The pencil opens editing without selecting that playlist.
+- The fixed drawer header includes search, sort, plus and close icons. Search filters playlist names using the existing normalized Hebrew matching; All Songs stays first. Nonempty searches disable ordering.
+- The sort icon toggles a draft ordering mode. Arrows and pointer/touch handles reorder within pinned or unpinned groups, never across them. Press the icon again to save; closing the drawer discards an unsaved order. No separate Finish control is added. Child mode protects order changes and discards a draft when relocking.
+- Pinning is an optional boolean in playlist metadata, compatible with archives without that field. Pinned playlists form the first stable group after All Songs. Unpinning moves an item to the end of ordinary playlists. Same-group renames keep position. Backup preserves pin flags and array order.
+- Within custom playlists, the per-row minus and multi-select Remove From Playlist action change membership only. In All Songs, the trash and batch Delete From Library retain recoverable library deletion.
+- Single or batch membership removal offers Undo Removal for five seconds. Undo restores the removed IDs at their original positions without changing library records or other playlists. It skips songs no longer available and does not recreate a deleted playlist.
+
+Validation: seven suites, including stable grouping, pin/unpin placement, cross-group movement rejection, legacy pin compatibility and backup round-trip. Browser QA at 390 × 844 verified integrated pencil, filtering and no-results state, sort disabled during search, pinning, arrow and drag movement, save/reload persistence, closing to cancel, unpin-to-end, nonselecting editor entry, editor without outer overflow, adult gating, contextual batch labels, single/batch removal and exact-order undo, library count and other playlists unchanged.

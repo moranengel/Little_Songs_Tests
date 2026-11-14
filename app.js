@@ -2,8 +2,9 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.7-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.8-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
+  let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
   const PL = LittleSongsPlaylists;
   let playlists = [], activePlaylistId = 'all', librarySort = 'manual';
@@ -79,7 +80,7 @@
     if (operation) return;
     operation = true; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = true);
     try { await task(); } catch(error) { if ($('parents').open) backupError = message(error); notify(message(error)); }
-    finally { operation = false; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = false); renderBackup(); renderProtection(); renderBulk(); }
+    finally { operation = false; document.querySelectorAll('.parent-actions button,#import,#edit-toggle,#select-songs,#bulk-add,#bulk-delete,#assign-save,#empty-import,#edit-form button,#backup-import,#playlist-form button,#song-sort,#manage-current,#manage-playlists,#create-playlist').forEach(b => b.disabled = false); renderBackup(); renderProtection(); renderBulk();renderDrawerControls(); }
   }
   function validateCatalog(data) {
     if (!data || !Array.isArray(data.songs)) throw new Error('רשימת השירים באתר אינה תקינה.');
@@ -196,7 +197,7 @@
       button.append(animal,copy,play); if(!editing)button.addEventListener('click',() => {if(bulkSelecting){selectedSongIds.has(track.id)?selectedSongIds.delete(track.id):selectedSongIds.add(track.id);const box=card.querySelector('.bulk-checkbox');if(box)box.checked=selectedSongIds.has(track.id);renderBulk();}else playSong(track.id);}); card.append(button);
       if(editing&&!bulkSelecting){
         const remove=document.createElement('button');remove.className='song-delete';remove.setAttribute('aria-label',(activePlaylist()?'הסרה מהפלייליסט של ':'מחיקה מהספרייה של ')+track.title);remove.title=activePlaylist()?'הסרה מהפלייליסט בלבד':'מחיקה מהספרייה (אפשר לשחזר)';
-        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','22');svg.setAttribute('height','22');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.8');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d','M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7');svg.append(path);remove.append(svg);
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','22');svg.setAttribute('height','22');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.8');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d',activePlaylist()?'M5 12h14':'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7');svg.append(path);remove.append(svg);
         remove.addEventListener('click',()=>{if(operation)return;requireAdult(()=>activePlaylist()?removeFromPlaylist(track.id):deleteTracks([track.id]));});card.append(remove);
       }
       if (editing) {
@@ -438,23 +439,50 @@
     activePlaylistId = id; bulkSelecting=false;selectedSongIds.clear();$('song-search').value='';
     $('playlists-drawer').close(); render(); document.querySelector('.library-scroll').scrollTop=0;
   }
-  function renderDrawer() {
-    const nav=$('playlist-nav');nav.replaceChildren();
-    for (const p of [{id:'all',name:'כל השירים',icon:'🎶',color:'#eee5fa'},...playlists]) {
-      const row=document.createElement('div');row.className='playlist-nav-row';
-      const button=document.createElement('button');button.className='playlist-choice';button.style.backgroundColor=p.color;button.setAttribute('aria-current',String(p.id===activePlaylistId));button.setAttribute('aria-label','בחירת '+p.name);
-      const icon=document.createElement('span');icon.textContent=p.icon;const copy=document.createElement('span');const name=document.createElement('strong');name.textContent=p.name;const count=document.createElement('small');count.textContent=(p.id==='all'?visible():PL.select(tracks,p)).length+' שירים';copy.append(name,count);button.append(icon,copy);button.addEventListener('click',()=>choosePlaylist(p.id));row.append(button);
-      if(p.id!=='all'){const edit=document.createElement('button');edit.className='playlist-nav-edit';edit.textContent='✎';edit.setAttribute('aria-label','עריכת הפלייליסט '+p.name);edit.addEventListener('click',()=>editPlaylist(p.id));row.append(edit);}nav.append(row);
-    }
+  function renderDrawerControls(){
+    const query=PL.normalize($('drawer-search').value);
+    $('drawer-order-toggle').disabled=operation||!!query||playlists.length<2;
+    $('drawer-order-toggle').setAttribute('aria-pressed',String(drawerOrdering));
+    $('drawer-order-toggle').setAttribute('aria-label',drawerOrdering?'שמירת סדר הפלייליסטים':'סידור פלייליסטים');
+    $('drawer-order-toggle').title=query?'נקי את החיפוש כדי לסדר פלייליסטים':drawerOrdering?'לחיצה נוספת לשמירת הסדר':'סידור פלייליסטים';
+    $('drawer-search-toggle').disabled=operation||drawerOrdering;$('create-playlist').disabled=operation||drawerOrdering;
+    $('drawer-order-help').hidden=!drawerOrdering;
   }
-  function openDrawer() { if(operation)return; $('parents').close();renderDrawer();$('playlists-drawer').showModal();$('playlists-toggle').setAttribute('aria-expanded','true'); }
+  function renderDrawer() {
+    const nav=$('playlist-nav');nav.replaceChildren();const query=PL.normalize($('drawer-search').value);
+    const ordered=drawerOrdering?drawerDraft:PL.sidebar(playlists),filtered=ordered.filter(p=>PL.normalize(p.name).includes(query));
+    for(const p of [{id:'all',name:'כל השירים',icon:'🎶',color:'#eee5fa'},...filtered]){
+      const row=document.createElement('div');row.className='playlist-nav-row';row.style.backgroundColor=p.color;row.classList.toggle('current',p.id===activePlaylistId);if(p.id!=='all')row.dataset.playlistId=p.id;
+      const button=document.createElement('button');button.className='playlist-choice';button.disabled=drawerOrdering;button.setAttribute('aria-current',String(p.id===activePlaylistId));button.setAttribute('aria-label','בחירת '+p.name);
+      const icon=document.createElement('span');icon.textContent=p.icon;const copy=document.createElement('span');const name=document.createElement('strong');name.textContent=(p.pinned?'📌 ':'')+p.name;const count=document.createElement('small');count.textContent=(p.id==='all'?visible():PL.select(tracks,p)).length+' שירים';copy.append(name,count);button.append(icon,copy);button.addEventListener('click',()=>choosePlaylist(p.id));row.append(button);
+      if(p.id!=='all'&&!drawerOrdering){const edit=document.createElement('button');edit.className='playlist-nav-edit';edit.textContent='✎';edit.setAttribute('aria-label','עריכת הפלייליסט '+p.name);edit.addEventListener('click',()=>editPlaylist(p.id));row.append(edit);}
+      if(p.id!=='all'&&drawerOrdering){
+        const controls=document.createElement('div');controls.className='drawer-order-controls';const handle=document.createElement('button');handle.className='drawer-drag';handle.textContent='⠿';handle.setAttribute('aria-label','גרירת הפלייליסט '+p.name);handle.addEventListener('pointerdown',event=>startDrawerDrag(event,row,p.id));controls.append(handle);
+        const group=ordered.filter(q=>!!q.pinned===!!p.pinned),index=group.findIndex(q=>q.id===p.id);
+        for(const [delta,text] of [[-1,'↑'],[1,'↓']]){const move=document.createElement('button');move.textContent=text;move.disabled=index+delta<0||index+delta>=group.length;move.setAttribute('aria-label',(delta<0?'העלאת הפלייליסט ':'הורדת הפלייליסט ')+p.name);move.addEventListener('click',()=>{drawerDraft=PL.moveSidebar(drawerDraft,p.id,group[index+delta].id);const top=nav.scrollTop;renderDrawer();nav.scrollTop=top;[...nav.querySelectorAll('.playlist-nav-row')].find(r=>r.dataset.playlistId===p.id)?.querySelector('.drawer-drag')?.focus({preventScroll:true});});controls.append(move);}row.append(controls);
+      }
+      nav.append(row);
+    }
+    if(query&&!filtered.length){const empty=document.createElement('p');empty.className='hint';empty.textContent='לא נמצאו פלייליסטים מתאימים.';nav.append(empty);}
+    renderDrawerControls();
+  }
+  function startDrawerDrag(event,row,id){
+    if(event.button!==0||drawerDrag||operation)return;event.preventDefault();const handle=event.currentTarget,root=$('playlist-nav'),initial=[...drawerDraft];drawerDrag=id;handle.setPointerCapture(event.pointerId);row.classList.add('dragging');
+    const move=e=>{const bounds=root.getBoundingClientRect();if(e.clientY<bounds.top+40)root.scrollTop-=18;else if(e.clientY>bounds.bottom-40)root.scrollTop+=18;const target=[...root.querySelectorAll('[data-playlist-id]')].find(r=>r!==row&&e.clientY>=r.getBoundingClientRect().top&&e.clientY<=r.getBoundingClientRect().bottom);if(!target)return;const next=PL.moveSidebar(drawerDraft,id,target.dataset.playlistId);if(next.findIndex(p=>p.id===id)===drawerDraft.findIndex(p=>p.id===id))return;drawerDraft=next;if(next.findIndex(p=>p.id===id)<next.findIndex(p=>p.id===target.dataset.playlistId))root.insertBefore(row,target);else root.insertBefore(row,target.nextSibling);handle.setPointerCapture(e.pointerId);};
+    const finish=e=>{handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',finish);handle.removeEventListener('pointercancel',finish);if(e.type==='pointercancel')drawerDraft=initial;drawerDrag=null;const top=root.scrollTop;renderDrawer();root.scrollTop=top;};
+    handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',finish);handle.addEventListener('pointercancel',finish);
+  }
+  function openDrawer() {if(operation)return;$('parents').close();drawerOrdering=false;drawerDraft=[];$('drawer-search').value='';$('drawer-search-box').hidden=true;$('drawer-search-toggle').setAttribute('aria-expanded','false');renderDrawer();$('playlists-drawer').showModal();$('playlists-toggle').setAttribute('aria-expanded','true');}
+  $('drawer-order-toggle').addEventListener('click',()=>{if(operation||PL.normalize($('drawer-search').value))return;requireAdult(()=>{if(!drawerOrdering){drawerDraft=PL.validate(PL.sidebar(playlists));drawerOrdering=true;$('drawer-search-box').hidden=true;$('drawer-search-toggle').setAttribute('aria-expanded','false');renderDrawer();return;}busy(async()=>{const next=PL.validate(drawerDraft),changed=JSON.stringify(next.map(p=>p.id))!==JSON.stringify(playlists.map(p=>p.id));if(changed)await write('meta',[{key:'playlists',value:next}],[],true);drawerOrdering=false;drawerDraft=[];await reload();if(changed)notify('סדר הפלייליסטים נשמר');});});});
+  $('drawer-search-toggle').addEventListener('click',()=>{const open=$('drawer-search-box').hidden;$('drawer-search-box').hidden=!open;$('drawer-search-toggle').setAttribute('aria-expanded',String(open));if(open)$('drawer-search').focus();else{$('drawer-search').value='';renderDrawer();}});
+  $('drawer-search').addEventListener('input',renderDrawer);$('drawer-search-clear').addEventListener('click',()=>{$('drawer-search').value='';renderDrawer();$('drawer-search').focus();});
   function editPlaylist(id=null) {
     if(operation)return;
     if(childMode&&!adultUnlocked){requireAdult(()=>editPlaylist(id));return;}
     const p=playlists.find(p=>p.id===id);playlistEditingId=p?.id || null;draftTrackIds=new Set(p?PL.select(tracks,p).map(t=>t.id):[]);draftOrdering=false;draftOrderChanged=false;draftPlaylistId=p?.id||'playlist:'+crypto.randomUUID();draftSortMode=p?.sortMode||'manual';
     $('playlists-drawer').close();$('parents').close();
     $('playlist-editor-title').textContent=p?'עריכת הפלייליסט':'פלייליסט חדש';$('playlist-name').value=p?.name || '';
-    $('playlist-icon').value=p?.icon || '🎵';$('playlist-color').value=p?.color || '#eee5fa';$('playlist-song-search').value='';$('delete-playlist').hidden=!p;$('duplicate-playlist').hidden=!p;$('playlist-editor-status').textContent='';
+    $('playlist-pinned').checked=!!p?.pinned;$('playlist-icon').value=p?.icon || '🎵';$('playlist-color').value=p?.color || '#eee5fa';$('playlist-song-search').value='';$('delete-playlist').hidden=!p;$('duplicate-playlist').hidden=!p;$('playlist-editor-status').textContent='';
     renderPlaylistChoices();$('playlist-editor').showModal();
   }
   function moveDraftTrack(id, targetId) {
@@ -513,10 +541,8 @@
       try{
         const old=playlists.find(p=>p.id===playlistEditingId);const selected=new Set([...draftTrackIds].filter(id=>visible().some(t=>t.id===id)));
         const ids=draftOrderChanged?[...selected]:[...(old?.trackIds || []).filter(id=>selected.has(id)),...[...selected].filter(id=>!old?.trackIds.includes(id))];
-        const p={id:old?.id || draftPlaylistId,name:$('playlist-name').value.trim(),icon:$('playlist-icon').value.trim(),color:$('playlist-color').value,trackIds:ids,sortMode:draftOrderChanged?'manual':draftSortMode};
-        const next=PL.validate([...playlists.filter(q=>q.id!==p.id),p]);
-        // Preserve the sidebar order of an existing playlist when renaming it.
-        const ordered=old?playlists.map(q=>q.id===p.id?next.find(n=>n.id===p.id):q):next;
+        const p={id:old?.id || draftPlaylistId,name:$('playlist-name').value.trim(),icon:$('playlist-icon').value.trim(),color:$('playlist-color').value,trackIds:ids,sortMode:draftOrderChanged?'manual':draftSortMode,pinned:$('playlist-pinned').checked};
+        const ordered=PL.upsertSidebar(playlists,p);
         await write('meta',[{key:'playlists',value:ordered}],[],true);activePlaylistId=p.id;await reload();$('playlist-editor').close();notify('הפלייליסט נשמר');
       }catch(error){$('playlist-editor-status').textContent=message(error);throw error;}
     });
@@ -525,10 +551,13 @@
     const p=playlists.find(p=>p.id===playlistEditingId);if(!p||!confirm('למחוק את הפלייליסט ״'+p.name+'״? כל השירים יישארו בספרייה.'))return;
     await busy(async()=>{const item={id:crypto.randomUUID(),kind:'playlist',playlist:p,title:p.name,index:playlists.findIndex(q=>q.id===p.id),deletedAt:Date.now()};await write('meta',[{key:'playlists',value:playlists.filter(q=>q.id!==p.id)},{key:'trash',value:[...trash,item]}],[],true);lastUndoId=item.id;if(activePlaylistId===p.id)activePlaylistId='all';await reload();$('playlist-editor').close();offerUndo(trash.find(item=>item.id===lastUndoId));});
   }
-  async function removeFromPlaylist(id) {
-    const p=activePlaylist();if(!p||!confirm('להסיר את השיר מהפלייליסט ״'+p.name+'״ בלבד? השיר יישאר בספרייה ובפלייליסטים האחרים.'))return;
-    await busy(async()=>{await write('meta',[{key:'playlists',value:playlists.map(q=>q.id===p.id?{...q,trackIds:q.trackIds.filter(t=>t!==id)}:q)}],[],true);await reload();notify('השיר הוסר מהפלייליסט בלבד',5000);});
+  async function removeFromPlaylist(id){return removePlaylistTracks([id]);}
+  async function removePlaylistTracks(ids){
+    const p=activePlaylist();if(!p||operation)return;const allowed=new Set(visible().map(t=>t.id));const plan=PL.removeMembership(playlists,p.id,ids.filter(id=>allowed.has(id)));if(!plan.removed.length)return;
+    if(!confirm('להסיר '+plan.removed.length+' שירים מהפלייליסט ״'+p.name+'״ בלבד? הם יישארו בספרייה ובפלייליסטים האחרים.'))return;
+    await busy(async()=>{await write('meta',[{key:'playlists',value:plan.playlists}],[],true);selectedSongIds.clear();await reload();clearTimeout(undoTimer);lastUndoIds=[];lastUndoId=null;lastUndoMembership={playlistId:p.id,removed:plan.removed};$('undo-delete').textContent='ביטול הסרה';$('undo-label').textContent='הוסרו '+plan.removed.length+' שירים מ״'+p.name+'״';$('undo-bar').hidden=false;undoTimer=setTimeout(()=>{$('undo-bar').hidden=true;lastUndoMembership=null;},5000);});
   }
+  async function undoMembershipRemoval(){const snapshot=lastUndoMembership;if(!snapshot)return;const p=playlists.find(q=>q.id===snapshot.playlistId);if(!p)throw new Error('הפלייליסט כבר אינו קיים.');const allowed=new Set(visible().map(t=>t.id));const items=snapshot.removed.filter(m=>allowed.has(m.trackId)).map(m=>({kind:'song',trackId:m.trackId,memberships:[{id:p.id,index:m.index}]}));const next=PL.restoreMemberships(playlists,items);await write('meta',[{key:'playlists',value:next}],[],true);lastUndoMembership=null;clearTimeout(undoTimer);$('undo-bar').hidden=true;await reload();notify('השירים הוחזרו למקומם בפלייליסט');}
   async function reorderTrack(id,delta) {
     await busy(async()=>{
       const order=listed();const i=order.findIndex(t=>t.id===id);const j=i+delta;if(i<0||j<0||j>=order.length)return;
@@ -541,7 +570,7 @@
   $('playlists-toggle').addEventListener('click',openDrawer);
   $('drawer-close').addEventListener('click',()=>$('playlists-drawer').close());
   $('drawer-backdrop').addEventListener('click',()=>$('playlists-drawer').close());
-  $('playlists-drawer').addEventListener('close',()=>$('playlists-toggle').setAttribute('aria-expanded','false'));
+  $('playlists-drawer').addEventListener('close',()=>{drawerOrdering=false;drawerDraft=[];$('playlists-toggle').setAttribute('aria-expanded','false');});
   $('manage-playlists').addEventListener('click',openDrawer);
   $('create-playlist').addEventListener('click',()=>editPlaylist());
   $('playlist-order-toggle').addEventListener('click',()=>{draftOrdering=!draftOrdering;renderPlaylistChoices();$('playlist-track-options').scrollTop=0;});
@@ -610,7 +639,7 @@
   }
   function lockChildren() {
     if(!childMode)return;
-    adultUnlocked=false;editing=false;bulkSelecting=false;selectedSongIds.clear();gateAction=null;
+    adultUnlocked=false;editing=false;drawerOrdering=false;drawerDraft=[];bulkSelecting=false;selectedSongIds.clear();gateAction=null;
     for(const id of ['parents','edit-dialog','playlist-editor','trash-dialog','adult-gate','backup-saved-dialog','assign-dialog','import-report'])if($(id).open)$(id).close();
     render();renderProtection();
   }
@@ -625,7 +654,7 @@
   $('child-lock').addEventListener('click',()=>adultUnlocked?lockChildren():requireAdult(()=>{$('parents').showModal();refreshStorageEstimate();}));
   $('child-mode-toggle').addEventListener('click',()=>busy(async()=>{childMode=!childMode;await write('meta',[{key:'childMode',value:childMode}]);if(childMode)lockChildren();else renderProtection();}));
   document.addEventListener('visibilitychange',()=>{if(document.hidden)lockChildren();});
-  function offerUndo(item){if(!item)return;lastUndoId=item.id;lastUndoIds=[item.id];clearTimeout(undoTimer);$('undo-label').textContent='נמחק: '+item.title;$('undo-bar').hidden=false;undoTimer=setTimeout(()=>$('undo-bar').hidden=true,5000);notify('אפשר לשחזר גם בהמשך דרך אחסון וגיבוי.',5000);}
+  function offerUndo(item){if(!item)return;lastUndoMembership=null;$('undo-delete').textContent='ביטול מחיקה';lastUndoId=item.id;lastUndoIds=[item.id];clearTimeout(undoTimer);$('undo-label').textContent='נמחק: '+item.title;$('undo-bar').hidden=false;undoTimer=setTimeout(()=>$('undo-bar').hidden=true,5000);notify('אפשר לשחזר גם בהמשך דרך אחסון וגיבוי.',5000);}
   async function restoreTrashItem(id){return restoreTrashItems([id]);}
   async function restoreTrashItems(ids) {
     const wanted=new Set(ids),items=trash.filter(item=>wanted.has(item.id));if(!items.length)return;
@@ -657,22 +686,22 @@
   function renderTrash(){const root=$('trash-list');root.replaceChildren();for(const item of [...trash].reverse()){const row=document.createElement('div');row.className='trash-row';const title=document.createElement('span');title.textContent=(item.kind==='song'?'שיר: ':'פלייליסט: ')+item.title;const button=document.createElement('button');button.className='outline';button.textContent='שחזור';button.setAttribute('aria-label','שחזור '+item.title);button.addEventListener('click',()=>busy(()=>restoreTrashItem(item.id)));const purge=document.createElement('button');purge.className='danger';purge.textContent='מחיקה לצמיתות';purge.setAttribute('aria-label','מחיקה לצמיתות של '+item.title);purge.addEventListener('click',()=>purgeTrashItem(item.id));row.append(title,button,purge);root.append(row);}if(!trash.length)root.textContent='אין פריטים שנמחקו.';}
   function openTrash(){requireAdult(()=>{renderTrash();$('trash-dialog').showModal();});}
   $('open-trash').addEventListener('click',openTrash);$('trash-close').addEventListener('click',()=>$('trash-dialog').close());
-  $('undo-delete').addEventListener('click',()=>busy(()=>restoreTrashItems(lastUndoIds)));
+  $('undo-delete').addEventListener('click',()=>busy(()=>lastUndoMembership?undoMembershipRemoval():restoreTrashItems(lastUndoIds)));
   const megabytes=n=>(n/1024/1024).toLocaleString('he-IL',{maximumFractionDigits:1})+' MB';
   function renderStorage(){const all=visible(),saved=all.filter(t=>t.blob),size=saved.reduce((sum,t)=>sum+t.blob.size,0),deleted=tracks.filter(t=>t.hidden&&t.blob).reduce((sum,t)=>sum+t.blob.size,0);$('storage-summary').textContent=all.length+' שירים בספרייה · '+saved.length+' זמינים אופליין · '+megabytes(size)+' בשירים פעילים · '+megabytes(deleted)+' בפריטים שנמחקו. '+(saved.length===all.length?'נפח השמע בגיבוי: כ־'+megabytes(size)+'.':'יש להשלים הורדה לפני גיבוי מלא.');$('open-trash').textContent='שחזור פריטים שנמחקו ('+trash.length+')';$('app-version').textContent='גרסת בדיקות: \u2066'+APP_VERSION+'\u2069';}
   async function refreshStorageEstimate(){renderStorage();try{const estimate=await navigator.storage?.estimate?.();$('storage-estimate').textContent=estimate?.quota?'אחסון הדומיין בדפדפן: כ־'+megabytes(estimate.usage||0)+' מתוך מכסה של '+megabytes(estimate.quota)+'. זו הערכה, לא המקום הפנוי בטלפון.':'הדפדפן אינו מספק הערכת מכסת אחסון.';}catch{$('storage-estimate').textContent='הערכת האחסון אינה זמינה.';}}
   async function checkUpdate(silent=false){if(checkingUpdate)return;checkingUpdate=true;$('check-update').disabled=true;if(!silent)$('update-status').textContent='בודקים עדכון…';const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);try{const response=await fetch('./version.json',{cache:'no-store',signal:controller.signal});if(!response.ok)throw new Error();const remote=await response.json();if(typeof remote.version!=='string'||remote.version.length>80)throw new Error();const available=remote.version!==APP_VERSION;$('update-status').textContent=available?'זמין עדכון לגרסה '+remote.version+'. טעינתו תרענן את הנגן.':'זו הגרסה העדכנית.';$('apply-update').hidden=!available;const registration=await navigator.serviceWorker?.getRegistration?.();await registration?.update();}catch{$('update-status').textContent='לא ניתן לבדוק עדכון כרגע. הגרסה המקומית ממשיכה לעבוד.';}finally{clearTimeout(timer);checkingUpdate=false;$('check-update').disabled=false;}}
   $('check-update').addEventListener('click',()=>checkUpdate());$('apply-update').addEventListener('click',()=>location.reload());
-  function renderBulk(){const visibleIds=new Set(visible().map(t=>t.id));selectedSongIds=new Set([...selectedSongIds].filter(id=>visibleIds.has(id)));$('bulk-bar').hidden=!bulkSelecting;$('bulk-count').textContent=selectedSongIds.size+' נבחרו';$('select-songs').textContent=bulkSelecting?'סיום בחירה':'בחירת כמה שירים';$('select-songs').setAttribute('aria-pressed',String(bulkSelecting));$('bulk-add').disabled=operation||!selectedSongIds.size;$('bulk-delete').disabled=operation||!selectedSongIds.size;}
+  function renderBulk(){const visibleIds=new Set(visible().map(t=>t.id));selectedSongIds=new Set([...selectedSongIds].filter(id=>visibleIds.has(id)));$('bulk-bar').hidden=!bulkSelecting;$('bulk-delete').textContent=activePlaylist()?'הסרה מהפלייליסט':'מחיקה מהספרייה';$('bulk-count').textContent=selectedSongIds.size+' נבחרו';$('select-songs').textContent=bulkSelecting?'סיום בחירה':'בחירת כמה שירים';$('select-songs').setAttribute('aria-pressed',String(bulkSelecting));$('bulk-add').disabled=operation||!selectedSongIds.size;$('bulk-delete').disabled=operation||!selectedSongIds.size;}
   $('select-songs').addEventListener('click',()=>{if(operation)return;requireAdult(()=>{bulkSelecting=!bulkSelecting;editing=false;selectedSongIds.clear();render();});});
   $('bulk-all').addEventListener('click',()=>{listed().filter(matchesSearch).forEach(t=>selectedSongIds.add(t.id));render();});
   $('bulk-clear').addEventListener('click',()=>{selectedSongIds.clear();render();});
   $('bulk-add').addEventListener('click',()=>openAssignment([...selectedSongIds]));
-  $('bulk-delete').addEventListener('click',()=>deleteTracks([...selectedSongIds]));
+  $('bulk-delete').addEventListener('click',()=>activePlaylist()?removePlaylistTracks([...selectedSongIds]):deleteTracks([...selectedSongIds]));
   function openAssignment(ids){if(operation)return;requireAdult(()=>{assignIds=ids.filter(id=>visible().some(t=>t.id===id));$('assign-summary').textContent=assignIds.length+' שירים יתווספו לפלייליסט שתבחרי. שירים שכבר נמצאים בו לא יתווספו שוב.';$('assign-error').textContent='';const select=$('assign-target');select.replaceChildren();for(const p of playlists){const option=document.createElement('option');option.value=p.id;option.textContent=p.icon+' '+p.name;select.append(option);}$('assign-save').disabled=!playlists.length||!assignIds.length;select.disabled=!playlists.length;if(!playlists.length)$('assign-error').textContent='אין עדיין פלייליסטים. צרי פלייליסט דרך תפריט התו ואז חזרי לכאן.';$('assign-dialog').showModal();});}
   $('assign-close').addEventListener('click',()=>$('assign-dialog').close());
   $('assign-form').addEventListener('submit',event=>{event.preventDefault();busy(async()=>{try{const next=PL.assign(playlists,$('assign-target').value,assignIds);await write('meta',[{key:'playlists',value:next}],[],true);await reload();$('assign-dialog').close();notify('השירים שויכו לפלייליסט');}catch(error){$('assign-error').textContent=message(error);throw error;}});});
-  $('duplicate-playlist').addEventListener('click',()=>{if(operation)return;try{const source={id:playlistEditingId,name:$('playlist-name').value.trim(),icon:$('playlist-icon').value.trim(),color:$('playlist-color').value,trackIds:[...draftTrackIds],sortMode:draftOrderChanged?'manual':draftSortMode};const copy=PL.copy(source,'playlist:'+crypto.randomUUID());playlistEditingId=null;draftPlaylistId=copy.id;draftSortMode=copy.sortMode;draftTrackIds=new Set(copy.trackIds);draftOrderChanged=false;$('playlist-name').value=copy.name;$('playlist-editor-title').textContent='עותק של הפלייליסט';$('delete-playlist').hidden=true;$('duplicate-playlist').hidden=true;$('playlist-editor-status').textContent='זהו עותק חדש. הפלייליסט המקורי לא ישתנה. לחצי על שמירה כדי ליצור אותו.';renderPlaylistChoices();}catch(error){$('playlist-editor-status').textContent=message(error);}});
+  $('duplicate-playlist').addEventListener('click',()=>{if(operation)return;try{const source={id:playlistEditingId,name:$('playlist-name').value.trim(),icon:$('playlist-icon').value.trim(),color:$('playlist-color').value,trackIds:[...draftTrackIds],sortMode:draftOrderChanged?'manual':draftSortMode,pinned:$('playlist-pinned').checked};const copy=PL.copy(source,'playlist:'+crypto.randomUUID());playlistEditingId=null;draftPlaylistId=copy.id;draftSortMode=copy.sortMode;draftTrackIds=new Set(copy.trackIds);draftOrderChanged=false;$('playlist-name').value=copy.name;$('playlist-editor-title').textContent='עותק של הפלייליסט';$('delete-playlist').hidden=true;$('duplicate-playlist').hidden=true;$('playlist-editor-status').textContent='זהו עותק חדש. הפלייליסט המקורי לא ישתנה. לחצי על שמירה כדי ליצור אותו.';renderPlaylistChoices();}catch(error){$('playlist-editor-status').textContent=message(error);}});
   function showImportReport(report,totals){$('import-report-summary').textContent='נוספו '+totals.added+' שירים · זוהו '+totals.reused+' קבצים כפולים · '+totals.failed+' נכשלו.'+(totals.linked?' '+totals.linked+' שירים קיימים שויכו לפלייליסט.':'')+(totals.recovered?' '+totals.recovered+' שירים שוחזרו.':'');const root=$('import-report-list');root.replaceChildren();for(const item of report){const row=document.createElement('div');row.className='import-report-row';const name=document.createElement('strong');name.textContent=item.name;const detail=document.createElement('p');detail.textContent=item.status+' — '+item.detail;row.append(name,detail);root.append(row);}if(!childMode||adultUnlocked)$('import-report').showModal();}
   for(const id of ['import-report-close','import-report-done'])$(id).addEventListener('click',()=>$('import-report').close());
   async function start() {

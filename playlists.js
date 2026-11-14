@@ -6,7 +6,8 @@
     const seen = new Set(); const allowed = allowedIds && new Set(allowedIds);
     return value.map(p => {
       if (!p || typeof p.id!=='string' || !p.id || p.id==='all' || p.id.length>240 || seen.has(p.id) || typeof p.name!=='string' || !p.name.trim() || p.name.length>80 || typeof p.icon!=='string' || !p.icon || [...p.icon].length>24 || typeof p.color!=='string' || !/^#[a-f0-9]{6}$/i.test(p.color) || !Array.isArray(p.trackIds) || p.trackIds.length>10000 || p.trackIds.some(id=>typeof id!=='string'||!id||id.length>240) || new Set(p.trackIds).size!==p.trackIds.length || (allowed && p.trackIds.some(id=>!allowed.has(id))) || !['manual','name'].includes(p.sortMode || 'manual')) throw new Error('פרטי הפלייליסט אינם תקינים.');
-      seen.add(p.id); return {id:p.id,name:p.name.trim(),icon:p.icon,color:p.color,trackIds:[...p.trackIds],sortMode:p.sortMode || 'manual'};
+      if(p.pinned!==undefined&&typeof p.pinned!=='boolean')throw new Error('סימון הנעיצה אינו תקין.');
+      seen.add(p.id); return {id:p.id,name:p.name.trim(),icon:p.icon,color:p.color,trackIds:[...p.trackIds],sortMode:p.sortMode || 'manual',...(p.pinned===undefined?{}:{pinned:p.pinned})};
     });
   }
   function select(tracks, playlist, sortMode='manual') {
@@ -47,6 +48,10 @@
       return {...p,trackIds:ids};
     });
   }
-  const api={validate,select,normalize,shuffled,queue,adjacent,assign,copy,planRemoval,restoreMemberships};
+  function sidebar(playlists){return [...playlists.filter(p=>p.pinned),...playlists.filter(p=>!p.pinned)];}
+  function moveSidebar(playlists,id,targetId){const out=[...playlists],from=out.findIndex(p=>p.id===id),to=out.findIndex(p=>p.id===targetId);if(from<0||to<0||from===to||!!out[from].pinned!==!!out[to].pinned)return out;const [item]=out.splice(from,1);out.splice(to,0,item);return out;}
+  function upsertSidebar(playlists,playlist){const old=playlists.find(p=>p.id===playlist.id);const next=old&&!!old.pinned===!!playlist.pinned?playlists.map(p=>p.id===playlist.id?playlist:p):[...playlists.filter(p=>p.id!==playlist.id),playlist];return validate(sidebar(next));}
+  function removeMembership(playlists,playlistId,ids){const p=playlists.find(p=>p.id===playlistId);if(!p)throw new Error('הפלייליסט אינו קיים.');const selected=new Set(ids),removed=p.trackIds.flatMap((id,index)=>selected.has(id)?[{trackId:id,index}]:[]);return {playlistId,removed,playlists:playlists.map(q=>q.id===p.id?{...q,trackIds:q.trackIds.filter(id=>!selected.has(id))}:q)};}
+  const api={validate,select,normalize,shuffled,queue,adjacent,assign,copy,planRemoval,restoreMemberships,sidebar,moveSidebar,upsertSidebar,removeMembership};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else window.LittleSongsPlaylists=api;
 })();
