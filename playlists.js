@@ -26,6 +26,27 @@
     const next=i+offset;
     return next>=0 && next<ids.length ? ids[next] : repeat==='all' ? ids[(next+ids.length)%ids.length] : null;
   }
-  const api={validate,select,normalize,shuffled,queue,adjacent};
+  function assign(playlists,targetId,ids) {
+    if(!playlists.some(p=>p.id===targetId))throw new Error('בחרי פלייליסט קיים.');
+    return validate(playlists.map(p=>p.id===targetId?{...p,trackIds:[...new Set([...p.trackIds,...ids])]}:p));
+  }
+  function copy(playlist,id) {
+    return validate([{...playlist,id,name:playlist.name.slice(0,72)+' — עותק',trackIds:[...playlist.trackIds]}])[0];
+  }
+  function planRemoval(tracks,playlists,ids) {
+    const selected=new Set(ids),found=tracks.filter(t=>!t.hidden&&selected.has(t.id));
+    const deleted=found.map(t=>({trackId:t.id,title:t.title,memberships:playlists.filter(p=>p.trackIds.includes(t.id)).map(p=>({id:p.id,index:p.trackIds.indexOf(t.id)}))}));
+    const actual=new Set(found.map(t=>t.id));
+    return {records:found.map(t=>({...t,hidden:true,trashPurged:false})),playlists:playlists.map(p=>({...p,trackIds:p.trackIds.filter(id=>!actual.has(id))})),deleted};
+  }
+  function restoreMemberships(playlists,items) {
+    return playlists.map(p=>{
+      let ids=[...p.trackIds];
+      const members=items.filter(item=>item.kind==='song').flatMap(item=>item.memberships.filter(m=>m.id===p.id).map(m=>({id:item.trackId,index:m.index}))).sort((a,b)=>a.index-b.index);
+      for(const member of members){ids=ids.filter(id=>id!==member.id);ids.splice(Math.min(Math.max(0,member.index),ids.length),0,member.id);}
+      return {...p,trackIds:ids};
+    });
+  }
+  const api={validate,select,normalize,shuffled,queue,adjacent,assign,copy,planRemoval,restoreMemberships};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;else window.LittleSongsPlaylists=api;
 })();

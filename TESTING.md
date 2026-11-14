@@ -73,3 +73,13 @@ Verified in the 390 × 844 browser preview: absence of both old Settings control
 ## Main-page song editing — 2026.11.14.3-test
 
 Song editing is now a pencil toggle beside import and search in the main toolbar, removed from Settings. Active editing has pressed state, highlighting, and an explicit Finish Editing button. The song count is grouped with the playlist heading on the right; it wraps within that heading group for longer titles. Child mode gates the pencil before enabling edits. Verified at 390 × 844: Settings removal, pencil enabling row edit buttons, opening a song editor, exiting edits, and child-mode protection. All five suites passed.
+
+## Daily-use actions — 2026.11.14.4-test
+
+- Every song has an accessible actions dialog for assignment to a playlist, name/icon editing, selection, library deletion, and removal from the current custom playlist. Adult gating applies to opening these actions.
+- Multi-selection can be started from the main list or a song menu. Select All applies to the current filtered results; switching playlists clears selection. Selected songs can be assigned without duplicate memberships or soft-deleted in a single transaction. Undo restores the whole deleted batch atomically and restores each playlist's original order. Individual recovery remains available after restart.
+- Duplicate Playlist creates an independent draft with its own ID, the current song selection, appearance and sorting. It writes only when Save is pressed; closing discards the copy.
+- Each import batch shows added/duplicate/failure totals and a per-file report, including reused playlist assignments and cancellation. Filenames remain local.
+- No playlist photos, playback-position persistence or sleep timer were added.
+
+Validation: six Node suites, including independent copies, idempotent assignments, multi-playlist recovery in differing orders and backup compatibility. Browser checks at 390 × 844 verified song editing through the actions menu, copy independence, assignment of two songs, two-song deletion and full undo, original playlist remaining unchanged, and an import report containing one new song, one renamed duplicate and one unsupported file. Both song menus and multi-selection were blocked by child mode. No CSP violations were observed.

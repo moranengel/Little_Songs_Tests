@@ -120,3 +120,5 @@
 ### Testing upgrades
 
 Settings now includes optional child mode, recoverable deletion, storage figures and app version/update checks. Audio imports detect byte-identical duplicates with SHA-256 locally, independent of filenames. Deleted items are excluded from portable backups; restore or permanently delete them from Settings. Child mode is a protection against accidental editing, not a password. File limits are 100 MiB per song and 1 GiB per backup. No sleep timer is included.
+
+The main list now includes song action menus and multi-selection for playlist assignment or recoverable deletion. Playlist copies are editable drafts saved explicitly. Import batches show per-file results. Personal playlist photos, resume position and sleep timer are not included.
