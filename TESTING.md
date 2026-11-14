@@ -93,3 +93,7 @@ The per-song ellipsis appears only while main-page song editing is active. Finis
 Per-song ellipsis menus have been removed. In editing mode, each row has a trash icon: custom playlists remove membership only; All Songs moves the track into recoverable deletion. Clicking the song name or animal icon opens name/icon editing. The pencil toggles editing on and off; there is no separate Finish Editing button. Multi-selection remains a main-page control. Deletion notices and the undo bar disappear after five seconds, while recovery remains available in Settings. Local audio captions now say “שמור במכשיר”.
 
 Browser QA at 390 × 844 verified hidden row controls in listening mode, adult gate before editing, row-click editor, pencil exit, playlist-only removal without decreasing library size, library deletion and five-second notices/undo visibility, and later recovery from Settings. All six suites passed.
+
+## Separate editing and playback targets — 2026.11.14.7-test
+
+While editing, song rows use a noninteractive layout container with separate native buttons for the title, animal icon and playback. Only the title/icon buttons open the editor. The caption and row background have no edit/play action. The round play button independently toggles playback without leaving editing mode. Ordinary listening and bulk selection keep their existing row actions. There are no nested buttons. Browser QA verified title and icon editing, inert caption, play/pause while editing, ordinary playback, and bulk selection without starting audio. All six suites passed.

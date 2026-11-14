@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.6-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.7-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
   const PL = LittleSongsPlaylists;
@@ -166,9 +166,9 @@
     $('queue-label').textContent = track ? 'מנגנים מתוך: '+playlistName(queuePlaylistId) : 'בחירת שיר תתחיל את הרשימה';
     document.querySelectorAll('.song-card').forEach(card => {
       const active = card.dataset.id === currentId; card.classList.toggle('active',active);
-      const button = card.querySelector('.song-main'); button.querySelector('.song-play').textContent = active && isPlaying ? 'Ⅱ' : '▶︎';
+      const main = card.querySelector('.song-main'), play=main.querySelector('.song-play');play.textContent=active&&isPlaying?'Ⅱ':'▶︎';
       const item = tracks.find(t => t.id === card.dataset.id);
-      if (item) button.setAttribute('aria-label',bulkSelecting?'בחירת '+item.title:(active && isPlaying ? 'השהיית ' : 'ניגון ')+item.title);
+      if(item){const label=bulkSelecting?'בחירת '+item.title:(active&&isPlaying?'השהיית ':'ניגון ')+item.title;if(main.tagName==='BUTTON')main.setAttribute('aria-label',label);else play.setAttribute('aria-label',label);}
     });
   }
   function render() {
@@ -186,14 +186,14 @@
     renderDrawer();
     for (const track of list) {
       const card = document.createElement('div'); card.className = 'song-card'; card.dataset.id = track.id; card.style.backgroundColor = colors[hash(track.id)%colors.length];
-      const button = document.createElement('button'); button.className = 'song-main'; button.type = 'button';
-      const animal = document.createElement('span'); animal.className = 'song-animal'; animal.textContent = iconFor(track); animal.setAttribute('aria-hidden','true');
+      const button = document.createElement(editing?'div':'button'); button.className = 'song-main'; if(!editing)button.type = 'button';
+      const animal = document.createElement(editing?'button':'span'); animal.className = 'song-animal'; animal.textContent = iconFor(track);if(editing){animal.type='button';animal.setAttribute('aria-label','עריכת האייקון של '+track.title);animal.addEventListener('click',()=>editSong(track.id));}else animal.setAttribute('aria-hidden','true');
       const copy = document.createElement('span'); copy.className = 'song-copy';
-      const name = document.createElement('span'); name.className = 'song-name'; name.textContent = track.title;
+      const name = document.createElement(editing?'button':'span'); name.className = 'song-name'; name.textContent = track.title;if(editing){name.type='button';name.setAttribute('aria-label','עריכת שם השיר '+track.title);name.addEventListener('click',()=>editSong(track.id));}
       const caption = document.createElement('span'); caption.className = 'song-caption'; caption.textContent = track.blob ? '✓ שמור במכשיר' : '☁ להאזנה דרך האינטרנט';
-      copy.append(name,caption); const play = document.createElement('span'); play.className = 'song-play'; play.textContent = '▶︎'; play.setAttribute('aria-hidden','true');
+      copy.append(name,caption); const play = document.createElement(editing?'button':'span'); play.className = 'song-play'; play.textContent = '▶︎';if(editing){play.type='button';play.addEventListener('click',()=>playSong(track.id));}else play.setAttribute('aria-hidden','true');
       if(bulkSelecting){const box=document.createElement('input');box.type='checkbox';box.className='bulk-checkbox';box.checked=selectedSongIds.has(track.id);box.setAttribute('aria-label','בחירת '+track.title);box.addEventListener('change',()=>{box.checked?selectedSongIds.add(track.id):selectedSongIds.delete(track.id);renderBulk();});card.append(box);}
-      button.append(animal,copy,play); button.addEventListener('click',() => {if(bulkSelecting){selectedSongIds.has(track.id)?selectedSongIds.delete(track.id):selectedSongIds.add(track.id);const box=card.querySelector('.bulk-checkbox');if(box)box.checked=selectedSongIds.has(track.id);renderBulk();}else editing?editSong(track.id):playSong(track.id);}); card.append(button);
+      button.append(animal,copy,play); if(!editing)button.addEventListener('click',() => {if(bulkSelecting){selectedSongIds.has(track.id)?selectedSongIds.delete(track.id):selectedSongIds.add(track.id);const box=card.querySelector('.bulk-checkbox');if(box)box.checked=selectedSongIds.has(track.id);renderBulk();}else playSong(track.id);}); card.append(button);
       if(editing&&!bulkSelecting){
         const remove=document.createElement('button');remove.className='song-delete';remove.setAttribute('aria-label',(activePlaylist()?'הסרה מהפלייליסט של ':'מחיקה מהספרייה של ')+track.title);remove.title=activePlaylist()?'הסרה מהפלייליסט בלבד':'מחיקה מהספרייה (אפשר לשחזר)';
         const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('width','22');svg.setAttribute('height','22');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.8');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');svg.setAttribute('aria-hidden','true');const path=document.createElementNS(svg.namespaceURI,'path');path.setAttribute('d','M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7');svg.append(path);remove.append(svg);
