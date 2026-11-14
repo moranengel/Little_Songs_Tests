@@ -150,3 +150,11 @@ Song edits now persist a small songEdit:<id> metadata record together with playl
 The song edit window closes immediately after the metadata write commits. A subsequent refresh failure is reported separately from a save failure. The original device error is still not identified; reducing the write to metadata addresses a possible Blob-writing failure path without claiming a confirmed Safari cause.
 
 All eight suites passed, including metadata-only writes, override projection, null override reset, repeated saves and retry after failure. Browser QA changed name/icon, confirmed immediate closure, reopened and changed the icon again without leaving editing, inspected the synthetic QA database to confirm audio record unchanged and metadata updated, and verified the saved title/icon after reload. Real-device confirmation is still needed.
+
+## Explicit audio source switching — 2026.11.14.15-test
+
+Every transition to a different song now pauses and detaches the previous source, explicitly loads the empty media element to discard its old buffer, then revokes the old object URL. The selected source is assigned and explicitly loaded before play. Same-song pause/resume retains its position. Stale play promises cannot reset a newer selection; an unavailable/offline selection stops the old song instead of leaving it audible. Service-worker behavior is unchanged: audio blobs and audio file requests are not shell-cache entries.
+
+The reported post-update iPhone problem was not reproduced directly, so this is a targeted source-switching fix rather than a confirmed diagnosis of corrupted stored audio. No library data is modified.
+
+A new regression suite covers different Blob bytes, explicit media buffer reload, URL disposal order, pause/resume, stale rejected promises after rapid changes, offline selection and reset. Required suites and song-edit/safeguards checks passed. Browser QA used three distinct generated tones: selected track ID/title and fetched currentSrc SHA-256 matched the corresponding stored Blob, including rapid transitions and a fresh page reload. Safari/device verification remains needed.

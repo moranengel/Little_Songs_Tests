@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.14-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.15-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
@@ -120,31 +120,41 @@
       try { navigator.mediaSession.metadata = new MediaMetadata({title:track.title,artist:'השירים הקטנים שלנו',artwork:[{src:new URL('./icons/rainbow-note-512.png',location.href).href,sizes:'512x512',type:'image/png'}]}); } catch {}
     }
   }
+  function clearAudioSource() {
+    // Detach the previous resource before revoking its URL. Explicit load()
+    // cancels any old pending play/load and discards the previous media buffer.
+    audio.pause();audio.removeAttribute('src');audio.load();
+    if(objectURL){URL.revokeObjectURL(objectURL);objectURL=null;}
+  }
   function resetPlayer() {
-    playToken++; audio.pause(); audio.removeAttribute('src'); audio.load(); currentId = null;
-    if (objectURL) { URL.revokeObjectURL(objectURL); objectURL = null; }
-    syncPlayer();
+    playToken++;currentId=null;clearAudioSource();syncPlayer();
   }
   async function playSong(id, toggle = true, fromQueue = false) {
-    const track = tracks.find(t => t.id === id && !t.hidden); if (!track) return;
-    if (!fromQueue) { queuePlaylistId = activePlaylistId; queueIds = PL.queue(listed().map(t=>t.id),id,shuffle); }
-    const token = ++playToken;
+    const track=tracks.find(t=>t.id===id&&!t.hidden);if(!track)return;
+    if(!fromQueue){queuePlaylistId=activePlaylistId;queueIds=PL.queue(listed().map(t=>t.id),id,shuffle);}
+    const token=++playToken;
     try {
-      if (currentId === id && audio.getAttribute('src')) {
-        if (toggle && !audio.paused) { audio.pause(); return; }
-        if (audio.ended) audio.currentTime = 0;
+      if(currentId===id&&audio.getAttribute('src')){
+        if(toggle&&!audio.paused){audio.pause();return;}
+        if(audio.ended)audio.currentTime=0;
       } else {
-        if (!track.blob && navigator.onLine === false) { notify('השיר הזה עדיין לא נשמר לאופליין. התחברי לאינטרנט ושמרי אותו דרך האזור להורים.'); return; }
-        audio.pause();
-        if (objectURL) { URL.revokeObjectURL(objectURL); objectURL = null; }
-        currentId = id;
-        if (track.blob) { objectURL = URL.createObjectURL(track.blob); audio.src = objectURL; }
-        else audio.src = track.url;
-        setMediaInfo(track); render();
+        currentId=null;clearAudioSource();
+        if(!track.blob&&navigator.onLine===false){
+          notify('השיר הזה עדיין לא נשמר לאופליין. התחברי לאינטרנט ושמרי אותו דרך ההגדרות.');syncPlayer();return;
+        }
+        const source=track.blob?URL.createObjectURL(track.blob):track.url;
+        if(!source)throw new Error('לשיר אין קובץ שמע זמין.');
+        if(track.blob)objectURL=source;
+        audio.src=source;audio.load();currentId=id;
+        setMediaInfo(track);render();
       }
       await audio.play();
-    } catch(error) { if (token === playToken && error.name !== 'AbortError') notify('לא ניתן לנגן את השיר. בדקי את החיבור או נסי קובץ שמע אחר.'); }
-    syncPlayer();
+    } catch(error) {
+      if(token!==playToken)return;
+      currentId=null;clearAudioSource();
+      notify('לא ניתן לנגן את השיר שנבחר. נסי לבחור אותו שוב או לבחור שיר אחר.');
+    }
+    if(token===playToken)syncPlayer();
   }
   function moveSong(offset, ended = false) {
     if (ended && repeat==='one' && current() && !current().hidden) { audio.currentTime=0; return playSong(currentId,false,true); }
