@@ -7,5 +7,5 @@ This branch is the testing version requested by Moran. New upgrades belong here 
 - Keep the visible testing label and testing PWA manifest name in this environment.
 - Never publish personal audio or backup files to either repository without explicit authorization. User imports and backups remain local.
 - After JS/CSS changes run python3 tools/version-assets.py, and include the generated assets, index.html, and sw.js in the update.
-- Run node tests/backup.test.cjs, node tests/assets.test.cjs and node tests/staging.test.cjs before updating this environment.
+- Run node tests/backup.test.cjs, node tests/assets.test.cjs node tests/staging.test.cjs and node tests/playlists.test.cjs before updating this environment.
 - When promoting an approved feature, preserve production's DB name, cache prefix, PWA identity and existing user data. Copy the approved source changes and regenerate production assets; do not blindly replace production with this testing tree.
