@@ -77,3 +77,5 @@ dialog .dialog-top .close{flex-shrink:0}
 dialog .close:focus{outline:none}
 dialog .close:focus-visible{background:#d9c8ef;color:#433b65}
 #edit-status{color:#a53547}#edit-status:empty{display:none}
+
+#audio-diagnostics-report{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.7 -apple-system,BlinkMacSystemFont,Arial,sans-serif;color:#433b65}#audio-diagnostics-report:empty{display:none}

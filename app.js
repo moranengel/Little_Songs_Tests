@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const audio = $('audio');
-  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.15-test';
+  const SAFE=LittleSongsSafeguards, APP_VERSION='2026.11.14.16-test';
   let childMode=false, adultUnlocked=false, gateAction=null, gateAnswer=0, trash=[], lastUndoId=null, undoTimer;
   let drawerOrdering=false, drawerDraft=[], drawerDrag=null, lastUndoMembership=null;
   let checkingUpdate=false, bulkSelecting=false, selectedSongIds=new Set(), assignIds=[], draftPlaylistId=null, draftSortMode='manual', lastUndoIds=[];
@@ -462,6 +462,51 @@
     });
     $('backup-file').value = '';
   }
+  let checkingAudio=false;
+  async function checkAudioDiagnostics() {
+    if(checkingAudio)return;
+    checkingAudio=true;$('audio-diagnostics-again').disabled=true;
+    const status=$('audio-diagnostics-status'),output=$('audio-diagnostics-report');
+    const selected=current(),selectedId=currentId,token=playToken,source=audio.currentSrc||audio.getAttribute('src');
+    const lines=['גרסת בדיקות: '+APP_VERSION,'השיר שמוצג: '+(selected?.title||'לא נבחר'),'הנגן: '+(audio.paused?'מושהה':'מנגן'),'משך מדווח: '+time(audio.duration),''];
+    status.textContent='קוראים את קובצי השמע במכשיר…';output.textContent='';
+    try {
+      let loadedHash=null,loadedError='';
+      if(source?.startsWith('blob:')){
+        try{const response=await fetch(source);if(!response.ok)throw new Error('קריאת המקור נכשלה');loadedHash=await SAFE.fingerprint(await response.blob());}
+        catch(error){loadedError=message(error);}
+      }
+      const groups=new Map();let selectedHash=null,issues=0;
+      for(const [index,track] of visible().entries()){
+        status.textContent='בודקים שיר '+(index+1)+' מתוך '+visible().length+'…';
+        const record=await read('tracks',track.id);
+        if(!record?.blob){lines.push(track.title+': אין קובץ מקומי');continue;}
+        try {
+          const storedHash=await SAFE.fingerprint(record.blob);
+          const memoryHash=track.blob===record.blob?storedHash:track.blob?await SAFE.fingerprint(track.blob):null;
+          const expected=record.fingerprint;
+          const mismatch=!!expected&&expected!==storedHash;
+          if(mismatch||memoryHash!==storedHash)issues++;
+          if(track.id===selectedId)selectedHash=storedHash;
+          const names=groups.get(storedHash)||[];names.push(track.title);groups.set(storedHash,names);
+          lines.push(track.title+'\nגודל: '+record.blob.size+' בתים · חתימה: '+storedHash.slice(0,16)+'\nסוג: '+(record.blob.type||'לא צוין')+'\n'+(expected?(mismatch?'⚠ הקובץ שונה מהחתימה שנשמרה בהעלאה':'✓ תואם לחתימה מההעלאה'):'אין חתימת מקור להשוואה')+'\n'+(memoryHash===storedHash?'✓ הזיכרון תואם לאחסון':'⚠ הזיכרון שונה מהאחסון')+'\n');
+        }catch(error){issues++;lines.push(track.title+': כשל בקריאת שמע — '+message(error)+'\n');}
+      }
+      lines.push('בדיקת המקור בנגן:');
+      if(token!==playToken)lines.push('הבחירה השתנתה במהלך הבדיקה. הפעילי שוב.');
+      else if(loadedHash&&selectedHash)lines.push(loadedHash===selectedHash?'✓ הקובץ שנטען לנגן תואם לשיר שנבחר':'⚠ הקובץ שנטען לנגן אינו תואם לשיר שנבחר');
+      else lines.push(loadedError||'אין מקור מקומי פעיל שאפשר להשוות.');
+      const duplicates=[...groups.values()].filter(names=>names.length>1);
+      lines.push('','קבצים זהים בין שירים: '+(duplicates.length?duplicates.map(names=>names.join(' / ')).join('; '):'לא נמצאו'));
+      lines.push('ממצאי אי־התאמה/קריאה: '+issues);
+      output.textContent=lines.join('\n');status.textContent='הבדיקה הסתיימה. השירים לא שונו.';
+    }catch(error){output.textContent=lines.join('\n');status.textContent='הבדיקה לא הושלמה: '+message(error);}
+    finally{checkingAudio=false;$('audio-diagnostics-again').disabled=false;}
+  }
+  $('check-audio').addEventListener('click',()=>requireAdult(()=>{$('audio-diagnostics').showModal();checkAudioDiagnostics();}));
+  $('audio-diagnostics-again').addEventListener('click',checkAudioDiagnostics);
+  $('audio-diagnostics-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText($('audio-diagnostics-status').textContent+'\n'+$('audio-diagnostics-report').textContent);$('audio-diagnostics-status').textContent='הדוח הועתק. אפשר להדביק אותו בצ׳אט.';}catch{$('audio-diagnostics-status').textContent='ההעתקה לא התאפשרה. אפשר לצלם את הדוח.';}});
+  $('audio-diagnostics-close').addEventListener('click',()=>$('audio-diagnostics').close());
   async function setupOffline() {
     if (!('serviceWorker' in navigator) || !window.isSecureContext) { $('download-progress').textContent = 'להתקנה ולאופליין יש לפתוח את האתר דרך כתובת HTTPS, ולא כקובץ מקומי.'; return; }
     try {
@@ -676,7 +721,7 @@
   function lockChildren() {
     if(!childMode)return;
     adultUnlocked=false;editing=false;drawerOrdering=false;drawerDraft=[];bulkSelecting=false;selectedSongIds.clear();gateAction=null;
-    for(const id of ['parents','edit-dialog','playlist-editor','trash-dialog','adult-gate','backup-saved-dialog','assign-dialog','import-report'])if($(id).open)$(id).close();
+    for(const id of ['parents','edit-dialog','playlist-editor','trash-dialog','adult-gate','backup-saved-dialog','assign-dialog','import-report','audio-diagnostics'])if($(id).open)$(id).close();
     render();renderProtection();
   }
   document.addEventListener('click',event=>{
