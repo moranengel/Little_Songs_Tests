@@ -116,3 +116,7 @@
 זוהי גרסת הבדיקות. השירים נשמרים במסד נתונים נפרד, והגרסה הרגילה מתעדכנת רק לאחר אישור מפורש.
 
 שם הגיבוי קבוע: `Backup.little-songs`. באייפון יש לבחור באותה תיקייה ולאשר החלפה אם רוצים לעדכן את הקובץ הקיים; לא ניתן להבטיח דריסה אוטומטית מתוך האתר.
+
+### Testing upgrades
+
+Settings now includes optional child mode, recoverable deletion, storage figures and app version/update checks. Audio imports detect byte-identical duplicates with SHA-256 locally, independent of filenames. Deleted items are excluded from portable backups; restore or permanently delete them from Settings. Child mode is a protection against accidental editing, not a password. File limits are 100 MiB per song and 1 GiB per backup. No sleep timer is included.

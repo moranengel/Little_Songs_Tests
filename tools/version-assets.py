@@ -8,7 +8,7 @@ root = Path(__file__).resolve().parents[1]
 assets = root / 'assets'
 assets.mkdir(exist_ok=True)
 replacements = {}
-for name in ['style.css', 'playlists.js', 'backup.js', 'app.js']:
+for name in ['style.css', 'safeguards.js', 'playlists.js', 'backup.js', 'app.js']:
     content = (root / name).read_bytes()
     digest = hashlib.sha256(content).hexdigest()[:12]
     path = f'assets/{Path(name).stem}-{digest}{Path(name).suffix}'

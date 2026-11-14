@@ -51,3 +51,15 @@ The menu, favicon and installation icons share a single musical note filled with
 ## Drawer backdrop fix
 
 The plus is a plain SVG with no circular background. The modal now spans the viewport with an explicit backdrop button behind a separate right-hand panel, instead of relying on pointer events on the native dialog backdrop. Browser QA in a 390 × 844 frame verified outside-click dismissal, inside-click retention, plus opening the editor, and X closing the drawer. Real-device Safari verification remains with the tester.
+
+## Safety and library management release — 2026.11.14.1-test
+
+- Optional child mode is stored locally and starts locked on each reload. A math challenge unlocks the adult session. The top lock button or backgrounding the page locks it again. This prevents accidental changes; it is not authentication or encryption. Browsing playlists and playback remain available.
+- Imports compare SHA-256 of actual bytes, including existing legacy blobs hashed lazily. Same bytes with a different filename do not add a second track; an existing song can be linked to the selected playlist after confirmation. Existing duplicates are not removed automatically, and un-downloaded catalog audio is not compared.
+- Deletion is recoverable: audio blobs remain local, and playlist membership/order is recorded. Undo is offered for 12 seconds; recovery remains available in Settings after a reload. Permanent deletion is a separate confirmed action. Old hidden catalog songs are migrated into recovery entries. Deleted items are excluded from backups and still consume storage until permanently deleted.
+- Settings shows active/offline counts, audio bytes, deleted bytes, approximate backup audio size, origin storage estimates, and the last user-confirmed backup status. Estimates describe the browser origin, not phone free space.
+- The current app version is visible. A network-only version.json check offers an explicit reload when another version is published. No automatic page reload interrupts playback or drafts. Future releases must update APP_VERSION and version.json together, bump the shell cache, regenerate assets and run tests.
+- CSP limits code, network and media sources. Audio import/download and backup restore have size limits: 100 MiB per track, 1 GiB per archive. Streamed downloads are bounded even without Content-Length. Export refuses oversize tracks before hashing, so it cannot emit a backup the importer rejects.
+- GitHub account security, separate-origin hosting and backup encryption are not changed by these browser features. Existing local data and production are preserved.
+
+Validation: all five Node suites plus syntax and asset consistency. Browser QA at 390 × 844 verified renamed-byte duplicate detection, linking an existing song to an empty playlist without increasing library count, child challenge wrong/right answers, locking and persistence, song undo restoring membership, playlist recovery after reload, storage figures, current/new version states, local blob playback and no CSP violations. QA uses generated audio, never user songs. Sleep timer excluded.
