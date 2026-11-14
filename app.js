@@ -12,7 +12,7 @@
   let editingId = null, pickedIcon = '', operation = false, shellReady = false, scrubbing = false;
   let noticeTimer, playToken = 0;
   let backupState = {revision:0,savedRevision:0,lastConfirmedAt:0};
-  let preparedBackup = null, offeredBackup = null, preparationTimer, preparationToken = 0, preparing = false, backupError = '', dismissedRevision = -1;
+  let preparedBackup = null, offeredBackup = null, preparationTimer, preparationToken = 0, preparing = false, backupError = '';
   const visible = () => PL.select(tracks,null,librarySort);
   const activePlaylist = () => playlists.find(p=>p.id===activePlaylistId);
   const listed = () => PL.select(tracks,activePlaylist(),librarySort);
@@ -167,7 +167,7 @@
     const library = visible(); const all = listed(); const list = all.filter(matchesSearch); $('song-list').replaceChildren(); $('empty').hidden = !!all.length; $('no-results').hidden = !all.length || !!list.length; $('count').textContent = list.length === all.length ? all.length+' שירים' : list.length+' מתוך '+all.length;
     $('list-title').textContent = (activePlaylist()?.icon || '🎶')+' '+playlistName(activePlaylistId);
     $('manage-current').hidden = activePlaylistId==='all'; $('song-sort').value = activePlaylist()?.sortMode || librarySort;
-    $('finish-editing').hidden = !editing;
+    $('finish-editing').hidden = !editing; $('manual-order-help').hidden = !editing;
     $('empty-title').textContent = activePlaylistId==='all' ? 'כאן יגורו השירים שלכם' : 'הפלייליסט הזה עדיין ריק';
     $('empty-hint').textContent = activePlaylistId==='all' ? 'אפשר להוסיף קובצי שירים או לשחזר גיבוי בהגדרות.' : 'בחרו שירים מהספרייה או הוסיפו קובצי שירים ישירות לפלייליסט.';
     $('empty-choose').hidden = activePlaylistId==='all';
@@ -270,12 +270,14 @@
   function renderBackup() {
     const dirty = backupState.revision > backupState.savedRevision;
     const all = visible(); const missing = all.filter(t => !t.blob).length;
-    $('backup-reminder').hidden = !dirty || dismissedRevision === backupState.revision;
-    $('backup-reminder-text').textContent = preparing ? 'מכינים גיבוי לשינויים האחרונים…' : offeredBackup ? 'בחרת לשמור גיבוי? אשרי לאחר השמירה ב״קבצים״' : 'יש שינויים שעדיין לא גובו בקובץ';
+    $('backup-shortcut').disabled = !dirty;
+    $('backup-shortcut').classList.toggle('needs-backup',dirty);
+    const shortcutLabel = dirty ? 'גיבוי — יש שינויים שלא גובו' : 'אין שינויים שממתינים לגיבוי';
+    $('backup-shortcut').setAttribute('aria-label',shortcutLabel); $('backup-shortcut').title=shortcutLabel;
     $('backup-status').textContent = dirty ? 'יש שינויים מאז הגיבוי האחרון שאישרת.' : backupState.lastConfirmedAt ? 'אישרת שמירת גיבוי ב־'+new Date(backupState.lastConfirmedAt).toLocaleString('he-IL') : 'עדיין לא אושרה שמירת גיבוי בקובץ.';
     const ready = preparedBackup?.revision === backupState.revision;
-    $('backup-save').textContent = !all.length && !playlists.length ? 'אין שירים לגיבוי' : operation ? 'ממתינים לסיום הפעולה…' : preparing ? 'מכינים את קובץ הגיבוי…' : ready ? 'שמירת קובץ הגיבוי' : missing ? 'הורדת השירים והכנת גיבוי' : 'הכנת גיבוי';
-    $('backup-save').disabled = operation || preparing || (!all.length && !playlists.length);
+    $('backup-save').textContent = !all.length && !playlists.length && !dirty ? 'אין שירים לגיבוי' : operation ? 'ממתינים לסיום הפעולה…' : preparing ? 'מכינים את קובץ הגיבוי…' : ready ? 'שמירת קובץ הגיבוי' : missing ? 'הורדת השירים והכנת גיבוי' : 'הכנת גיבוי';
+    $('backup-save').disabled = operation || preparing || (!all.length && !playlists.length && !dirty);
     $('backup-cancel').hidden = !preparing;
     $('backup-confirm').hidden = !offeredBackup;
     $('backup-confirm').disabled = operation;
@@ -287,7 +289,7 @@
   function scheduleBackup() {
     clearTimeout(preparationTimer);
     // Only prepare locally while the app is open; never launch downloads automatically.
-    if (backupState.revision <= backupState.savedRevision || (!visible().length && !playlists.length) || visible().some(t => !t.blob) || preparedBackup?.revision === backupState.revision) return;
+    if (backupState.revision <= backupState.savedRevision || visible().some(t => !t.blob) || preparedBackup?.revision === backupState.revision) return;
     preparationTimer = setTimeout(() => prepareBackup(),700);
   }
   async function prepareBackup() {
@@ -310,14 +312,13 @@
         $('backup-progress').textContent = 'מכינים גיבוי: '+done+' מתוך '+total+' שירים';
       },{playlists:backupPlaylists,librarySort});
       if (token !== preparationToken || revision !== backupState.revision) return;
-      const stamp = new Date().toISOString().replace(/[:.]/g,'-');
-      preparedBackup = {revision,file:new File([blob],'Little-Songs-'+stamp+'.little-songs',{type:'application/octet-stream'})};
+      preparedBackup = {revision,file:new File([blob],'Little-Songs-Backup.little-songs',{type:'application/octet-stream'})};
     } catch(error) { if (token === preparationToken && error.name !== 'AbortError') backupError = 'לא ניתן להכין גיבוי: '+message(error); }
     finally { if (token === preparationToken) { preparing = false; renderBackup(); } }
   }
   async function saveBackup() {
     if (operation || preparing) return;
-    if (!visible().length && !playlists.length) { notify('הוסיפי שירים או פלייליסט לפני יצירת גיבוי.'); return; }
+    if (!visible().length && !playlists.length && backupState.revision<=backupState.savedRevision) { notify('הוסיפי שירים או פלייליסט לפני יצירת גיבוי.'); return; }
     if (visible().some(t => !t.blob)) {
       backupError = '';
       if (visible().some(t => !t.blob && t.source !== 'catalog')) {
@@ -339,7 +340,7 @@
         setTimeout(() => URL.revokeObjectURL(url),60000);
       }
       offeredBackup = snapshot;
-      $('backup-progress').textContent = 'בחרי ״שמירה בקבצים״ ושמרי באייפון או ב־iCloud Drive. רק לאחר שהקובץ נשמר לחצי ״שמרתי את הקובץ״.';
+      $('backup-progress').textContent = 'בחרי ״שמירה בקבצים״, באותה תיקייה, ואז ״החלפה״ אם מתבקשת. רק לאחר שהקובץ נשמר לחצי ״שמרתי את הקובץ״.';
       renderBackup();
     } catch(error) { if (error.name !== 'AbortError') { backupError = 'לא ניתן לפתוח שמירה: '+message(error); renderBackup(); } }
   }
@@ -475,8 +476,7 @@
   $('backup-confirm').addEventListener('click',confirmBackup);
   $('backup-import').addEventListener('click',() => { if (!operation) $('backup-file').click(); });
   $('backup-file').addEventListener('change',() => restoreBackup($('backup-file').files[0]));
-  $('backup-reminder-open').addEventListener('click',() => { $('parents').showModal(); $('parents-toggle').setAttribute('aria-expanded','true'); $('backup-title').scrollIntoView({block:'start'}); });
-  $('backup-reminder-dismiss').addEventListener('click',() => { dismissedRevision = backupState.revision; renderBackup(); });
+  $('backup-shortcut').addEventListener('click',() => { $('parents').showModal(); $('parents-toggle').setAttribute('aria-expanded','true'); $('backup-title').scrollIntoView({block:'start'}); });
   $('play').addEventListener('click',() => { const t = current() || listed()[0]; if (t) playSong(t.id,true,!!current()); });
   $('previous').addEventListener('click',() => moveSong(-1)); $('next').addEventListener('click',() => moveSong(1));
   $('seek').addEventListener('input',() => { scrubbing = true; $('elapsed').textContent = time(Number($('seek').value)); });
