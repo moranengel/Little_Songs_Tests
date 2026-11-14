@@ -500,10 +500,7 @@
   }
   $('playlists-toggle').addEventListener('click',openDrawer);
   $('drawer-close').addEventListener('click',()=>$('playlists-drawer').close());
-  let drawerPointerOutside = false;
-  const outsideDrawer = event => { const r=$('playlists-drawer').getBoundingClientRect();return event.clientX<r.left || event.clientX>r.right || event.clientY<r.top || event.clientY>r.bottom; };
-  $('playlists-drawer').addEventListener('pointerdown',event=>{ drawerPointerOutside = event.target===$('playlists-drawer') && outsideDrawer(event); });
-  $('playlists-drawer').addEventListener('click',event=>{ if(drawerPointerOutside && event.target===$('playlists-drawer') && outsideDrawer(event)) $('playlists-drawer').close(); drawerPointerOutside=false; });
+  $('drawer-backdrop').addEventListener('click',()=>$('playlists-drawer').close());
   $('playlists-drawer').addEventListener('close',()=>$('playlists-toggle').setAttribute('aria-expanded','false'));
   $('manage-playlists').addEventListener('click',openDrawer);
   $('create-playlist').addEventListener('click',()=>editPlaylist());

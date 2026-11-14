@@ -47,3 +47,7 @@ Browser checks at 390 × 844: title opening, arrow moves, pointer drag, cancella
 ## Rainbow note icon
 
 The menu, favicon and installation icons share a single musical note filled with rainbow colors. Versioned icon filenames avoid reusing the previous arch icon from cache. Existing home-screen shortcuts may need to be recreated for iOS to refresh their icon.
+
+## Drawer backdrop fix
+
+The plus is a plain SVG with no circular background. The modal now spans the viewport with an explicit backdrop button behind a separate right-hand panel, instead of relying on pointer events on the native dialog backdrop. Browser QA in a 390 × 844 frame verified outside-click dismissal, inside-click retention, plus opening the editor, and X closing the drawer. Real-device Safari verification remains with the tester.
