@@ -190,3 +190,9 @@ The regression suite executes actual batch deletion against records whose audio 
 A production iPhone screenshot showed Settings collapsed to the title and a sliver of body content. The internally scrolling frame previously had only max-height and flex children with zero flex basis, leaving its actual height dependent on intrinsic layout. Settings now has an explicit viewport-bounded height (85vh fallback, min(760px,85dvh)); framed form/body children use an automatic flex basis so short dialogs retain their natural content size. Header/X remain outside the vertical scroll area. No data or playback logic changes.
 
 Required archive/assets/staging/playlists suites and JS syntax checks passed. The attempted local browser QA was unavailable due to a browser URL-policy block after an initial refused local connection; no successful visual verification is claimed. Device confirmation is required before production promotion. Production remains 2026.11.14.1.
+
+## Visible version pull — 2026.11.15.2-test
+
+A refresh-arrow icon next to backup/settings explicitly fetches version.json with no-store, asks the registration to update, waits for an installing/waiting worker to activate, then reloads. Repeated clicks are ignored, active database writes block refresh, and failed/offline/invalid responses leave the current page in place. The Settings Load Update button uses the same path. Navigation fetches in the worker now bypass HTTP cache while retaining offline shell fallback. Settings keeps the explicit viewport-bounded height fix.
+
+All 13 testing suites passed, including worker activation ordering, duplicate clicks, failure handling and write guard. The user explicitly authorized immediate production publication without affected-device confirmation. No visual Safari verification is claimed.

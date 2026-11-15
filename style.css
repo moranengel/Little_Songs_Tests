@@ -82,3 +82,6 @@ dialog .close:focus-visible{background:#d9c8ef;color:#433b65}
 
 /* Give Safari a definite height for the long, internally scrolling settings. */
 dialog.parents.framed-dialog{height:85vh;height:min(760px,85dvh)}
+
+#version-shortcut{color:var(--purple)}#version-shortcut.update-available{background:#eee5fa}
+@media(prefers-reduced-motion:no-preference){#version-shortcut[aria-busy=true] svg{animation:version-pull-spin 1s linear infinite}@keyframes version-pull-spin{to{transform:rotate(360deg)}}}
