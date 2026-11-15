@@ -184,3 +184,9 @@ The user's screenshot confirmed that v17's generic audio-write validation also b
 Import duplicate checking skips legacy candidates whose bytes cannot be read or do not match their expected fingerprint. Unreadable active/trash records therefore cannot block a fresh original file upload. Checking a legacy fingerprint no longer rewrites its audio. Valid byte-backed duplicate detection remains active.
 
 The regression suite executes actual batch deletion against records whose audio reads throw, verifies deletion and membership/trash state, recovery/order and retained song edits without audio reads, and executes the import candidate loop to verify unreadable-trash skipping and valid duplicate matching. Required suites plus song-edit, audio-storage, diagnostics and safeguards passed. Production remains untouched.
+
+## Settings dialog height — 2026.11.15.1-test
+
+A production iPhone screenshot showed Settings collapsed to the title and a sliver of body content. The internally scrolling frame previously had only max-height and flex children with zero flex basis, leaving its actual height dependent on intrinsic layout. Settings now has an explicit viewport-bounded height (85vh fallback, min(760px,85dvh)); framed form/body children use an automatic flex basis so short dialogs retain their natural content size. Header/X remain outside the vertical scroll area. No data or playback logic changes.
+
+Required archive/assets/staging/playlists suites and JS syntax checks passed. The attempted local browser QA was unavailable due to a browser URL-policy block after an initial refused local connection; no successful visual verification is claimed. Device confirmation is required before production promotion. Production remains 2026.11.14.1.
